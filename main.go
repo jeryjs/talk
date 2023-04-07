@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	su "talk/speechUtils"
 )
@@ -22,5 +21,5 @@ func main() {
 		text := su.Chat(msg)
 		su.Say(text)
 	}
-	log.Println("\n\n"+msg)
+	fmt.Scanln()
 }
