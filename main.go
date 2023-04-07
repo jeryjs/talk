@@ -19,7 +19,8 @@ func main() {
 	for(msg != "exit") {
 		msg = su.Listen()
 		text := su.Chat(msg)
-		su.Say(text)
+		su.SayWithEspeak(text)
 	}
+	fmt.Println("\nPress Enter to exit...")
 	fmt.Scanln()
 }

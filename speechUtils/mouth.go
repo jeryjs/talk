@@ -12,7 +12,7 @@ import (
 //go:embed ..\assets\espeak.exe
 var espeakBinary []byte
 
-func Say(text string) {
+func SayWithEspeak(text string) {
 	fmt.Println(text+"\n")
 
 	binaryPath := filepath.Join(os.TempDir(), "espeak.exe")

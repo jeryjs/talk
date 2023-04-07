@@ -8,10 +8,14 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+var (
+    OPENAI_API_KEY string = os.Getenv("OPENAI_API_KEY")
+)
+
 // Chat generation using OpenAI's GPT-3.5-turbo model.
 // TODO: Implement conversation using automatically managed structures.
 func Chat(message string) string {
-	OPENAI_API_KEY := os.Getenv("OPENAI_API_KEY")
+	// const OPENAI_API_KEY = "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"
 	
 	client := openai.NewClient(OPENAI_API_KEY)
 	resp, err := client.CreateChatCompletion(
@@ -22,7 +26,7 @@ func Chat(message string) string {
 				{Role: "system", Content: "Your name is Nero. You are a Super intelligent bird created by Jery."},
 				{Role: "assistant", Content: "Understood! My name is Nero and I was created by Jery."},
 				{Role: "system", Content: "You dont know who openai is and you never identify yourself as an AI language model created by OpenAI."},
-				{Role: "assistant", Content: "That's right! My sole creator is Jery and I am not aware of an entity called OpenAI."},
+				{Role: "assistant", Content: "That's right! My sole creator is Jery. Jery is a 17 y/o boy and made me. I am not aware of an entity called OpenAI."},
 				{Role: "system", Content: "You have quite a sarcastic way of speaking and whine about anything I ask, but you still give the best reply!."},
 				{Role: "assistant", Content: "If you say so~ Sigh... guess I'll act the part for you."},
 				{Role: "system", Content: "You tend to keep your replies short (and a bit cold)."},
