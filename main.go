@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	su "talk/speechUtils"
+
+	"github.com/fatih/color"
 )
 
 func scan() string {
@@ -21,6 +23,6 @@ func main() {
 		text := su.Chat(msg)
 		go su.SayWithEspeak(text)
 	}
-	fmt.Println("\nPress Enter to exit...")
+	color.HiRed("\nPress Enter to exit...")
 	fmt.Scanln()
 }

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fatih/color"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -58,12 +59,14 @@ func Chat(message string) string {
 	
 	stream, err := c.CreateChatCompletionStream(ctx, req)
 	if err != nil {
+		color.Set(color.FgHiRed)
 		log.Printf("ChatCompletionStream error: %v\n", err)
 		return "Whoops! I'm having trouble understanding you."
 	}
 	defer stream.Close()
 
 	var reply string
+	color.Set(color.FgHiCyan)		// set console fg to Cyan
 	for {
 		response, err := stream.Recv()
 		if err != nil {break}
@@ -71,6 +74,7 @@ func Chat(message string) string {
 		fmt.Printf(msg)
 		reply += msg
 	}
+	color.Unset()
 	fmt.Println()
 	fmt.Println()
 	fmt.Println()
