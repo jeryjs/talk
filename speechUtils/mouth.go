@@ -27,8 +27,6 @@ func init() {
 			return
 		}
 	}
-
-	ttsSpeech = htgotts.Speech{Folder: "tempAudio", Language: "en", Handler: &handlers.Native{}}
 }
 
 func SayWithEspeak(text string) {
@@ -40,5 +38,7 @@ func SayWithTTS(text string) {
 }
 
 func SayWithHtgoTts(text string) {
+	ttsSpeech = htgotts.Speech{Folder: "tempAudio", Language: "en", Handler: &handlers.Native{}}
     ttsSpeech.Speak(text)
+	err:= os.RemoveAll("tempAudio"); if err != nil {fmt.Println(err)}
 }

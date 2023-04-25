@@ -21,9 +21,9 @@ func main() {
 	for(msg != "exit") {
 		msg = su.Listen()
 		text := su.Chat(msg)
-		go su.SayWithEspeak(text)		// Robotic Voice
+		// go su.SayWithEspeak(text)		// Robotic Voice
 		// go su.SayWithTTS(text)			// Male Voice
-		// go su.SayWithHtgoTts(text)		// Female Voice
+		go su.SayWithHtgoTts(text)		// Female Voice
 	}
 	color.HiRed("\nPress Enter to exit...")
 	fmt.Scanln()
