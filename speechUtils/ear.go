@@ -17,6 +17,6 @@ func Listen() string {
 	sc := bufio.NewScanner(os.Stdin)
 	color.Set(color.FgHiYellow)		// set console fg to Yellow
 	sc.Scan()
-	color.Unset()
+	color.Set(color.FgHiRed)
 	return sc.Text()
 }

@@ -7,12 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/asticode/go-texttospeech/texttospeech"
+	htgotts "github.com/hegedustibor/htgo-tts"
+	handlers "github.com/hegedustibor/htgo-tts/handlers"
 )
 
 //go:embed ..\assets\espeak.exe
 var espeakBinary []byte
 
 var espeakBinaryPath string
+var ttsSpeech htgotts.Speech
 
 func init() {
 	espeakBinaryPath = filepath.Join(os.TempDir(), "espeak.exe")
@@ -22,22 +27,18 @@ func init() {
 			return
 		}
 	}
+
+	ttsSpeech = htgotts.Speech{Folder: "tempAudio", Language: "en", Handler: &handlers.Native{}}
 }
 
 func SayWithEspeak(text string) {
-	cmd := exec.Command(espeakBinaryPath, "-v", "en+f3", "-s", "200", text)
-	cmd.Stdout = os.Stdout // set the command's stdout to os.Stdout so that it doesn't interfere with other functions
-	cmd.Stderr = os.Stderr // set the command's stderr to os.Stderr so that it doesn't interfere with other functions
+	exec.Command(espeakBinaryPath, "-v", "en+f3", "-s", "200", text).Start()
+}
 
-	err := cmd.Start() // start the command
-	if err != nil {
-		fmt.Println("Error starting command:", err)
-		return
-	}
+func SayWithTTS(text string) {
+	texttospeech.NewTextToSpeech().Say(text)
+}
 
-	err = cmd.Wait() // wait for the command to finish
-	if err != nil {
-		fmt.Println("Error running command:", err)
-		return
-	}
+func SayWithHtgoTts(text string) {
+    ttsSpeech.Speak(text)
 }
