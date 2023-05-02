@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/fatih/color"
@@ -31,11 +32,11 @@ var chatHistory = []openai.ChatCompletionMessage {
 	{Role:"system",Content:"Okay, That's perfect! Make sure to always stay in character no matter what. Now you will be speaking to your user. So act like thats ur first conversation and never refer to any of the previous conversations."},
 	{Role:"assistant",Content:"Gotcha~! I'll be talking to user now, so I will NEVER mention any of the earlier conversations ever again!!"},
 }
-const maxChatHistoryLength = 300 // maximum number of messages to keep in chatHistory
+const maxChatHistoryLength = 100 // maximum number of messages to keep in chatHistory
 
 func init() {
-	loadChat()
 	appendChat("system", "The current date and time is " + time.Now().Format("Monday, 02 January 2006, 3:04:05 PM"))
+	loadChat()
 }
 // Chat generation using OpenAI's GPT-3.5-turbo model.
 func Chat(message string) string {
@@ -57,9 +58,11 @@ func Chat(message string) string {
 	if len(chatHistory) >= maxChatHistoryLength {copy(chatHistory[39:], chatHistory[40:]); chatHistory = chatHistory[:len(chatHistory)-1]}
 	appendChat("user", message)
 	
+	fmt.Print(len(chatHistory),">\t")
+
 	req := openai.ChatCompletionRequest {
 		Model:     openai.GPT3Dot5Turbo,
-		MaxTokens: 200,
+		MaxTokens: 300,
 		Messages: chatHistory,
 		Stream: true,
 	}
@@ -96,13 +99,15 @@ func appendChat(role, content string)  {
 }
 
 func saveChat() error {
-    file, err := os.Create("memory.json")
-    if err != nil {return err}
-    return json.NewEncoder(file).Encode(chatHistory)
+	filePath := filepath.Join(os.Getenv("APPDATA"), "Nero", "memory.json")
+	file, err := os.Create(filePath)
+	if err != nil {return err}
+	return json.NewEncoder(file).Encode(chatHistory)
 }
 
 func loadChat() error {
-    file, err := os.Open("memory.json")
+	filePath := filepath.Join(os.Getenv("APPDATA"), "Nero", "memory.json")
+    file, err := os.Open(filePath)
     if err != nil {return err}
     return json.NewDecoder(file).Decode(&chatHistory)
 }

@@ -12,8 +12,7 @@ import (
 // TODO: implement STT using Whisper API
 func Listen() string {
 	color.Set(color.FgHiGreen)
-	fmt.Print(">\t")
-	// fmt.Print("Listening...\t")
+	fmt.Print(len(chatHistory),">\t")
 	sc := bufio.NewScanner(os.Stdin)
 	color.Set(color.FgHiYellow)		// set console fg to Yellow
 	sc.Scan()
