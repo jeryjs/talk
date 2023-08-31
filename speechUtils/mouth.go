@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,7 +31,14 @@ func init() {
 }
 
 func SayWithEspeak(text string) {
-	exec.Command(espeakBinaryPath, "-v", "en+f3", "-s", "200", text).Start()
+	exec.Command("taskkill", "/im", "espeak.exe", "/T", "/F").Run()
+	
+	cmd := exec.Command(espeakBinaryPath, "--path=Z:/Documents/All-Projects/talk/assets", "-v", "en+f3", "-s", "200", text)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Start()
+	if err != nil {log.Fatal(err)}
 }
 
 func SayWithTTS(text string) {

@@ -32,11 +32,13 @@ var chatHistory = []openai.ChatCompletionMessage {
 	{Role:"system",Content:"Okay, That's perfect! Make sure to always stay in character no matter what. Now you will be speaking to your user. So act like thats ur first conversation and never refer to any of the previous conversations."},
 	{Role:"assistant",Content:"Gotcha~! I'll be talking to user now, so I will NEVER mention any of the earlier conversations ever again!!"},
 }
-const maxChatHistoryLength = 100 // maximum number of messages to keep in chatHistory
-
+const maxChatHistoryLength = 50 // maximum number of messages to keep in chatHistory
+var InitialHistoryLength = 0
 func init() {
 	appendChat("system", "The current date and time is " + time.Now().Format("Monday, 02 January 2006, 3:04:05 PM"))
 	loadChat()
+	InitialHistoryLength = len(chatHistory)-1
+	// InitialHistoryLength = 2222
 }
 // Chat generation using OpenAI's GPT-3.5-turbo model.
 func Chat(message string) string {
@@ -55,10 +57,13 @@ func Chat(message string) string {
 
 	// Append the new message to the chatHistory, and remove the 40th oldest message if chatHistory exceeds maxChatHistoryLength
 	// if len(chatHistory) >= maxChatHistoryLength {chatHistory = chatHistory[1:]}
-	if len(chatHistory) >= maxChatHistoryLength {copy(chatHistory[39:], chatHistory[40:]); chatHistory = chatHistory[:len(chatHistory)-1]}
+	if len(chatHistory) >= maxChatHistoryLength {
+		copy(chatHistory[InitialHistoryLength+5:], chatHistory[InitialHistoryLength+6:])
+		chatHistory = chatHistory[:len(chatHistory)-1]
+	}
 	appendChat("user", message)
 	
-	fmt.Print(len(chatHistory),">\t")
+	fmt.Print(len(chatHistory)-InitialHistoryLength,">\t")
 
 	req := openai.ChatCompletionRequest {
 		Model:     openai.GPT3Dot5Turbo,
@@ -100,14 +105,15 @@ func appendChat(role, content string)  {
 
 func saveChat() error {
 	filePath := filepath.Join(os.Getenv("APPDATA"), "Nero", "memory.json")
-	file, err := os.Create(filePath)
-	if err != nil {return err}
+    err := os.MkdirAll(filepath.Dir(filePath), 0755); if err != nil {errr(err)}
+    file, err := os.Create(filePath); if err != nil {errr(err)}
 	return json.NewEncoder(file).Encode(chatHistory)
 }
 
 func loadChat() error {
 	filePath := filepath.Join(os.Getenv("APPDATA"), "Nero", "memory.json")
-    file, err := os.Open(filePath)
-    if err != nil {return err}
+    err := os.MkdirAll(filepath.Dir(filePath), 0755); if err != nil {errr(err)}
+    file, err := os.Open(filePath); if err != nil {errr(err)}
     return json.NewDecoder(file).Decode(&chatHistory)
 }
+func errr(err error) error {fmt.Println(err); return err}
