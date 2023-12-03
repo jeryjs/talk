@@ -1,3 +1,4 @@
-api.key
+openai.key
+bard.key
 tempAudio
 memory.json

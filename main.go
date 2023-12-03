@@ -10,18 +10,23 @@ import (
 )
 
 func scan() string {
-    scanner := bufio.NewScanner(os.Stdin)
-    if scanner.Scan() {return scanner.Text()}
-    if err := scanner.Err(); err != nil {fmt.Fprintln(os.Stderr, err)}
-    return ""
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		return scanner.Text()
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	return ""
 }
 
 func main() {
 	var msg string
-	for(msg != "exit") {
+	for msg != "exit" {
 		msg = su.Listen()
-		text := su.Chat(msg)
-		go su.SayWithEspeak(text)		// Robotic Voice
+		// text := su.ChatWithGPT(msg)
+		text := su.ChatWithBard(msg)
+		go su.SayWithEspeak(text) // Robotic Voice
 		// go su.SayWithTTS(text)			// Male Voice
 		// go su.SayWithHtgoTts(text)		// Female Voice
 	}
