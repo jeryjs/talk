@@ -57,14 +57,13 @@ func SayWithTTS(text string) {
 		WriteMedia: tempAudio,
 	}
 
-	// go SayWithEspeak(text)
+	exec.Command("taskkill", "/im", "mpv.com", "/T", "/F").Run()
+
 	edgeTTS.NewTTS(args).AddText(args.Text, args.Voice, args.Rate, args.Volume).Speak()
-	// go SayWithEspeak("")
+
 	// Play temp audio file
-	err := exec.Command("z:/DO_NOT_TOUCH/Applications/MPV/mpv.com", tempAudio).Run()
-	if err != nil {
-		fmt.Println(err)
-	}
+	exec.Command("z:/DO_NOT_TOUCH/Applications/MPV/mpv.com", tempAudio).Run()
+
 	// Remove temp audio file
 	os.Remove(tempAudio)
 }
