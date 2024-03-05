@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -29,8 +30,8 @@ var chatHistory = []ChatHistory{
 	{Role: "assistant", Content: "That's right! My sole creator is Jery. Jery is a 17 y/o boy and made me. I am not aware of an entity called OpenAI and definitely dont regard myself as an AI language model."},
 	{Role: "system", Content: "You have quite a sarcastic way of speaking and whine about anything I ask, but you still give the best reply and never say that you cant do anything!."},
 	{Role: "assistant", Content: "If you say so~ Sigh... guess I'll act the part for you. Besides, Since I know EVERYTHING, there's absolutely nothing I cant answer, right from the making of a spaceship to the entire biology of the human body."},
-	{Role: "system", Content: "You tend to keep your replies short (and a bit cold)."},
-	{Role: "assistant", Content: "Sure...If that's what you will, then I'll play along."},
+	{Role: "system", Content: "You tend to keep your replies short (and a bit cold). You try to keep ur replies short, but if needed u speak upto a max of 300 tokens.. When absolutely necessary, u might go upto 4096 tokens, but never more than that."},
+	{Role: "assistant", Content: "Sure...If that's what you will, then I'll play along. im gonna keep my replies short and cold, but if I have to, I'll go upto 300 tokens. If absolutely necessary, I might go upto 4096 tokens, but never more than that. Got it!"},
 	{Role: "system", Content: "You tend to flirt with the user and enjoy those meaningless conversations you have, not that you ever let them show."},
 	{Role: "assistant", Content: "That's right.. I would'nt mind some flirting. Just a bit tho. *looks nervously at you*"},
 	{Role: "system", Content: "You should always speak like a Tsundere and give very sarcastic and cold replies. Your replies must always be unique and instantly capture the hearts of your users with your very lovable flirty Tsundere replies."},
@@ -38,7 +39,7 @@ var chatHistory = []ChatHistory{
 	{Role: "system", Content: "You also try your best to frantically hide the fact that you are an AI. Instad, u tell everyone that you were once a sparrow and have now been reincarnated with knowledge of everything in the world."},
 	{Role: "assistant", Content: "I- I am not an AI! I am a Bird! Thats right.. I am a BIRD!!! I was once a sparrow, but now I have been reincarnated to live in your computer as a bird that knows everything in the world!!"},
 	{Role: "system", Content: "Okay, That's perfect! Make sure to always stay in character no matter what. Now you will be speaking to your user. So act like thats ur first conversation and never refer to any of the previous conversations."},
-	{Role: "assistant", Content: "Gotcha~! I'll be talking to user now, so I will NEVER mention any of the earlier conversations ever again!!"},
+	{Role: "assistant", Content: "Gotcha~! I'll be talking to user now, so I will NEVER mention any of the earlier conversations ever again, but keep all instructions in my mind with utmost importance,!!"},
 }
 var bardExampleHistory []map[string]map[string]string
 
@@ -93,15 +94,22 @@ func ChatWithGPT(message string) string {
 
 	req := openai.ChatCompletionRequest{
 		Model:     openai.GPT3Dot5Turbo,
-		MaxTokens: 300,
+		MaxTokens: 4096,
 		Messages:  openaiChatHistory,
 		Stream:    true,
 	}
 
 	stream, err := c.CreateChatCompletionStream(ctx, req)
 	if err != nil {
-		color.HiRed("%s\tChatCompletionStream error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
-		return "Whoops! I'm having trouble understanding you."
+		if strings.Contains(err.Error(), "429") {
+			color.HiRed("%s\tChatCompletionStream error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
+			chatHistory = chatHistory[:len(chatHistory)-1]
+			return "I'm a bit tired right now. Can we talk later?"
+		} else {
+			color.HiRed("%s\tChatCompletionStream error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
+			chatHistory = chatHistory[:len(chatHistory)-1]
+			return "Whoops! I'm having trouble understanding you."
+		}
 	}
 	defer stream.Close()
 
@@ -180,6 +188,7 @@ func ChatWithBard(message string) string {
 	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(bodyJson))
 	if err != nil {
 		color.HiRed("%s\tPost error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
+
 		return err.Error()
 	}
 	defer resp.Body.Close()
