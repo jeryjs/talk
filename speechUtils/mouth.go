@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/asticode/go-texttospeech/texttospeech"
 	htgotts "github.com/hegedustibor/htgo-tts"
 	handlers "github.com/hegedustibor/htgo-tts/handlers"
+	"github.com/surfaceyu/edge-tts-go/edgeTTS"
 )
 
 //go:embed ..\assets\espeak.exe
@@ -32,21 +33,47 @@ func init() {
 
 func SayWithEspeak(text string) {
 	exec.Command("taskkill", "/im", "espeak.exe", "/T", "/F").Run()
-	
+
 	cmd := exec.Command(espeakBinaryPath, "--path=Z:/Documents/All-Projects/talk/assets", "-v", "en+f3", "-s", "200", text)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Start()
-	if err != nil {log.Fatal(err)}
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func SayWithTTS(text string) {
-	texttospeech.NewTextToSpeech().Say(text)
+	voices := []string{"en-US-AnaNeural", "zh-CN-YunxiaNeural", "zh-CN-YunxiaNeural", "zh-TW-HsiaoChenNeural", "zh-CN-XiaoyiNeural", "zh-CN-XiaoxiaoNeural"}
+	voice := voices[rand.Intn(len(voices))]
+	tempAudio, _ := os.Getwd()
+	tempAudio += "/tempAudio.mp3"
+	args := edgeTTS.Args{
+		Text:       text,
+		Voice:      voice,
+		Rate:       "+20%",
+		Volume:     "+0%",
+		WriteMedia: tempAudio,
+	}
+
+	// go SayWithEspeak(text)
+	edgeTTS.NewTTS(args).AddText(args.Text, args.Voice, args.Rate, args.Volume).Speak()
+	// go SayWithEspeak("")
+	// Play temp audio file
+	err := exec.Command("z:/DO_NOT_TOUCH/Applications/MPV/mpv.com", tempAudio).Run()
+	if err != nil {
+		fmt.Println(err)
+	}
+	// Remove temp audio file
+	os.Remove(tempAudio)
 }
 
 func SayWithHtgoTts(text string) {
-	ttsSpeech = htgotts.Speech{Folder: "tempAudio", Language: "en", Handler: &handlers.Native{}}
-    ttsSpeech.Speak(text)
-	err:= os.RemoveAll("tempAudio"); if err != nil {fmt.Println(err)}
+	ttsSpeech = htgotts.Speech{Folder: "tempAudio", Language: "en-us", Handler: &handlers.Native{}}
+	ttsSpeech.Speak(text)
+	err := os.RemoveAll("tempAudio")
+	if err != nil {
+		fmt.Println(err)
+	}
 }
