@@ -27,7 +27,7 @@ func main() {
 
 	// Define flags
 	text := flag.String("t", "", "Text to say")
-	ai := flag.String("ai", "gpt", "Chat AI to use (gpt/bard)")
+	ai := flag.String("ai", "liberty", "Chat AI to use (gpt/bard/liberty)")
 	speech := flag.String("se", "tts", "Speech engine to use (espeak/tts/htgotts)")
 
 	// Parse command line arguments
@@ -47,6 +47,9 @@ func main() {
 		} else if strings.HasPrefix(msg, "<g") {
 			ce = "gpt"
 			msg = strings.TrimPrefix(msg, "<g")
+		} else if strings.HasPrefix(msg, "<l") {
+			ce = "liberty"
+			msg = strings.TrimPrefix(msg, "<l")
 		} else {
 			ce = *ai
 		}
@@ -70,6 +73,8 @@ func main() {
 			text = su.ChatWithGPT(msg)
 		case "bard":
 			text = su.ChatWithBard(msg)
+		case "liberty":
+			text = su.ChatWithLiberty(msg)
 		}
 
 		// Select speech engine based on flag

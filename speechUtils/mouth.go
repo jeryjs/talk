@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,14 +44,14 @@ func SayWithEspeak(text string) {
 }
 
 func SayWithTTS(text string) {
-	voices := []string{"en-US-AnaNeural", "zh-CN-YunxiaNeural", "zh-CN-YunxiaNeural", "zh-TW-HsiaoChenNeural", "zh-CN-XiaoyiNeural", "zh-CN-XiaoxiaoNeural"}
-	voice := voices[rand.Intn(len(voices))]
+	// voices := []string{"en-US-AnaNeural", "zh-CN-YunxiaNeural", "zh-CN-YunxiaNeural", "zh-TW-HsiaoChenNeural", "zh-CN-XiaoyiNeural", "zh-CN-XiaoxiaoNeural"}
+	voice := "en-US-AnaNeural"
 	tempAudio, _ := os.Getwd()
 	tempAudio += "/tempAudio.mp3"
 	args := edgeTTS.Args{
 		Text:       text,
 		Voice:      voice,
-		Rate:       "+20%",
+		Rate:       "+30%",
 		Volume:     "+0%",
 		WriteMedia: tempAudio,
 	}
