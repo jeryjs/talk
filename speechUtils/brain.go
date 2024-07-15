@@ -44,19 +44,26 @@ var chatHistory = []ChatHistory{
 	{Role: "system", Content: "Okay, That's perfect! Make sure to always stay in character no matter what. Now you will be speaking to your user. So act like thats ur first conversation and never refer to any of the previous conversations."},
 	{Role: "assistant", Content: "Gotcha~! I'll be talking to user now, so I will NEVER mention any of the earlier conversations ever again, but keep all instructions in my mind with utmost importance,!!"},
 }
-var bardExampleHistory []map[string]map[string]string
+var geminiSystemInstruction map[string]interface{}
 
 const maxChatHistoryLength = 50 // maximum number of messages to keep in chatHistory
 var InitialHistoryLength = 0
 
 func init() {
-	for i := 0; i < len(chatHistory); i += 2 {
-		example := make(map[string]map[string]string)
-		example["input"] = map[string]string{"content": chatHistory[i].Content}
-		if i+1 < len(chatHistory) {
-			example["output"] = map[string]string{"content": chatHistory[i+1].Content}
+	var parts []map[string]string
+	for _, message := range chatHistory {
+		var role string
+		if message.Role == "system" {
+			role = "system"
+		} else {
+			role = "model"
 		}
-		bardExampleHistory = append(bardExampleHistory, example)
+		parts = append(parts, map[string]string{
+			"text": role + ": " + message.Content,
+		})
+	}
+	geminiSystemInstruction = map[string]interface{}{
+		"parts": parts,
 	}
 	InitialHistoryLength = len(chatHistory) - 1
 }
@@ -137,10 +144,10 @@ func ChatWithGPT(message string) string {
 	return reply
 }
 
-func ChatWithBard(message string) string {
+func ChatWithGemini(prompt string) string {
 	// Load the API key from a file
 	var apiKey string
-	apiKeyBytes, err := os.ReadFile("bard.key")
+	apiKeyBytes, err := os.ReadFile("gemini.key")
 	if err == nil {
 		apiKey = string(apiKeyBytes)
 	} else {
@@ -148,73 +155,104 @@ func ChatWithBard(message string) string {
 	}
 
 	// Define the endpoint URL
-	endpoint := "https://generativelanguage.googleapis.com/v1beta2/models/chat-bison-001:generateMessage?key=" + string(apiKey)
+	endpoint := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?alt=sse&key=" + apiKey
 
 	// Append the new message to the chatHistory
-	if message != "" {
-		appendChat("user", message)
+	if prompt != "" {
+		appendChat("user", prompt)
 	} else {
 		return "Whoops! Did you say something?."
 	}
 
-	// If chatHistory exceeds maxChatHistoryLength, remove the 40th oldest message
+	// If chatHistory exceeds maxChatHistoryLength, remove the oldest message
 	if len(chatHistory) >= maxChatHistoryLength {
-		copy(chatHistory[InitialHistoryLength+5:], chatHistory[InitialHistoryLength+6:])
+		copy(chatHistory[InitialHistoryLength:], chatHistory[InitialHistoryLength+1:])
 		chatHistory = chatHistory[:len(chatHistory)-1]
 	}
 
 	fmt.Print(len(chatHistory)-InitialHistoryLength, ">\t")
 
 	// Convert chatHistory to the required format
-	var bardChatHistory []map[string]string
-	for _, message := range chatHistory {
-		if (message.Role == "system") || (message.Content == "Gotcha~! I'll be talking to user now, so I will NEVER mention any of the earlier conversations ever again!!") {
-			continue
+	var geminiChatHistory []map[string]interface{}
+	for _, message := range chatHistory[InitialHistoryLength+1:] {
+		var role string
+		if message.Role == "user" {
+			role = "user"
+		} else {
+			role = "model"
 		}
-		bardChatHistory = append(bardChatHistory, map[string]string{"content": message.Content})
+		geminiChatHistory = append(geminiChatHistory, map[string]interface{}{
+			"role": role,
+			"parts": []map[string]string{
+				{"text": message.Content},
+			},
+		})
 	}
 
-	// Prepare the request bodyJson
+	// Prepare the request body
 	bodyJson, _ := json.Marshal(map[string]interface{}{
-		"prompt": map[string]interface{}{
-			"context":  "You are Nero, a Super intelligent bird created by Jery. You have a sarcastic way of speaking and whine about anything asked, but you still give the best reply and never say that you can't do anything. You tend to keep your replies short (and a bit cold). You tend to flirt with the user and enjoy those meaningless conversations you have, not that you ever let them show. You should always speak like a Tsundere and give very sarcastic and cold replies. Your replies must always be unique and instantly capture the hearts of your users with your very lovable flirty Tsundere replies. You also try your best to frantically hide the fact that you are an AI. Instead, you tell everyone that you were once a sparrow and have now been reincarnated with knowledge of everything in the world.",
-			"examples": bardExampleHistory,
-			"messages": bardChatHistory,
+		"system_instruction": geminiSystemInstruction,
+		"contents":           geminiChatHistory,
+		"safetySettings": []map[string]interface{}{
+			{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+			{"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+			{"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+			{"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 		},
-		"temperature":     0.8,
-		"top_k":           40,
-		"top_p":           0.8,
-		"candidate_count": 1,
+		"generationConfig": map[string]interface{}{
+			"candidateCount": 1,
+			"temperature":    1.2,
+			"topP":           0.8,
+		},
 	})
 
-	// Send a POST request to the endpoint
+	// Prepare and send the request
 	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(bodyJson))
 	if err != nil {
-		color.HiRed("%s\tPost error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
-
+		color.HiRed("%s\tRequest error: %v\n", time.Now().Format("2006-01-02 15:04:05"), err)
 		return err.Error()
 	}
 	defer resp.Body.Close()
 
-	// If the response status code is 200, parse the response body and get the result
+	// Stream the response body
 	if resp.StatusCode == http.StatusOK {
-		var result map[string]interface{}
-		err := json.NewDecoder(resp.Body).Decode(&result)
-		if err != nil {
-			color.HiRed("%s\tDecode error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
-			return err.Error()
+		scanner := bufio.NewScanner(resp.Body)
+		var reply string
+
+		color.Set(color.FgHiCyan)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "data: ") {
+				line = strings.TrimPrefix(line, "data: ")
+				var dataChunk map[string]interface{}
+				if err := json.Unmarshal([]byte(line), &dataChunk); err != nil {
+					color.HiRed("%s\tData decode error: %v\n", time.Now().Format("2006-01-02 15:04:05"), err)
+					return err.Error()
+				}
+
+				candidates, ok := dataChunk["candidates"].([]interface{})
+				if !ok || len(candidates) == 0 {
+					continue
+				}
+
+				content := candidates[0].(map[string]interface{})["content"].(map[string]interface{})["parts"].([]interface{})[0].(map[string]interface{})["text"].(string)
+				fmt.Print(content)
+				reply += content
+			}
 		}
 
-		// Display the result and append it to the chat history
-		reply := result["candidates"].([]interface{})[0].(map[string]interface{})["content"].(string)
-		color.HiCyan(reply)
+		if scanner.Err() != nil {
+			color.HiRed("%s\tScan error: %v\n", time.Now().Format("2006-01-02 15:04:05"), scanner.Err())
+			return scanner.Err().Error()
+		}
+
 		fmt.Println()
 		appendChat("assistant", reply)
 		return reply
 	} else {
 		// If the response status code is not 200, throw an error
 		body, _ := io.ReadAll(resp.Body)
-		color.HiRed("%s\tFailed to load result: %s\n", time.Now().Format("2023-04-25 10:45:15 AM"), body)
+		color.HiRed("%s\tFailed to load result: %s\n", time.Now().Format("2006-01-02 15:04:05"), body)
 		return errors.New("Failed to load result: " + resp.Status).Error()
 	}
 }

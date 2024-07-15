@@ -27,7 +27,7 @@ func main() {
 
 	// Define flags
 	text := flag.String("t", "", "Text to say")
-	ai := flag.String("ai", "liberty", "Chat AI to use (gpt/bard/liberty)")
+	ai := flag.String("ai", "gemini", "Chat AI to use (gpt/gemini/liberty)")
 	speech := flag.String("se", "tts", "Speech engine to use (espeak/tts/htgotts)")
 
 	// Parse command line arguments
@@ -42,7 +42,7 @@ func main() {
 
 		var ce string
 		if strings.HasPrefix(msg, "<b") {
-			ce = "bard"
+			ce = "gemini"
 			msg = strings.TrimPrefix(msg, "<b")
 		} else if strings.HasPrefix(msg, "<g") {
 			ce = "gpt"
@@ -71,8 +71,8 @@ func main() {
 		switch ce {
 		case "gpt":
 			text = su.ChatWithGPT(msg)
-		case "bard":
-			text = su.ChatWithBard(msg)
+		case "gemini":
+			text = su.ChatWithGemini(msg)
 		case "liberty":
 			text = su.ChatWithLiberty(msg)
 		}

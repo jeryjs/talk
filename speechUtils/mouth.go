@@ -61,8 +61,7 @@ func SayWithTTS(text string) {
 	edgeTTS.NewTTS(args).AddText(args.Text, args.Voice, args.Rate, args.Volume).Speak()
 
 	// Play temp audio file
-	exec.Command("z:/DO_NOT_TOUCH/Applications/MPV/mpv.com", tempAudio).Run()
-
+	exec.Command("z:/Applications/MPV/mpv.com", tempAudio).Run()
 	// Remove temp audio file
 	os.Remove(tempAudio)
 }
