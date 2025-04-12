@@ -34,57 +34,53 @@ func main() {
 	flag.Parse()
 
 	msg = *text
+	currentAI := *ai
+	currentSpeech := *speech
+
 	for msg != "exit" {
 		if msg == "" {
 			msg = su.Listen()
 		}
 		var text string
 
-		var ce string
-		if strings.HasPrefix(msg, "<b") {
-			ce = "gemini"
-			msg = strings.TrimPrefix(msg, "<b")
-		} else if strings.HasPrefix(msg, "<g") {
-			ce = "gpt"
-			msg = strings.TrimPrefix(msg, "<g")
-		} else if strings.HasPrefix(msg, "<l") {
-			ce = "liberty"
-			msg = strings.TrimPrefix(msg, "<l")
-		} else {
-			ce = *ai
+		// Helper function for setting AI and printing messages
+		setAIPrefix := func(aiType, prefix string) {
+			if strings.HasPrefix(msg, prefix) {
+				currentAI = aiType
+				msg = strings.TrimPrefix(msg, prefix)
+				color.New(color.FgMagenta).Printf("Switching to %s AI\n", aiType)
+			}
 		}
-		var se string
-		if strings.HasPrefix(msg, "<1") {
-			se = "espeak"
-			msg = strings.TrimPrefix(msg, "<1")
-		} else if strings.HasPrefix(msg, "<2") {
-			se = "tts"
-			msg = strings.TrimPrefix(msg, "<2")
-		} else if strings.HasPrefix(msg, "<3") {
-			se = "htgotts"
-			msg = strings.TrimPrefix(msg, "<3")
-		} else {
-			se = *speech
+		// Determine chat engine
+		setAIPrefix("gemini", "<b")
+		setAIPrefix("gpt", "<g")
+		setAIPrefix("liberty", "<l")
+
+		// Helper function for setting speech engine and printing messages
+		setSpeechPrefix := func(speechType, prefix string) {
+			if strings.HasPrefix(msg, prefix) {
+				currentSpeech = speechType
+				msg = strings.TrimPrefix(msg, prefix)
+				color.New(color.FgMagenta).Printf("Switching to %s speech\n", speechType)
+			}
 		}
+		// Determine speech engine
+		setSpeechPrefix("espeak", "<1")
+		setSpeechPrefix("tts", "<2")
+		setSpeechPrefix("htgotts", "<3")
 
 		// Select chat engine based on flag
-		switch ce {
-		case "gpt":
-			text = su.ChatWithGPT(msg)
-		case "gemini":
-			text = su.ChatWithGemini(msg)
-		case "liberty":
-			text = su.ChatWithLiberty(msg)
+		switch currentAI {
+			case "gpt": text = su.ChatWithGPT(msg)
+			case "gemini": text = su.ChatWithGemini(msg)
+			case "liberty": text = su.ChatWithLiberty(msg)
 		}
 
 		// Select speech engine based on flag
-		switch se {
-		case "espeak":
-			go su.SayWithEspeak(text) // Robotic Voice
-		case "tts":
-			go su.SayWithTTS(text) // Male Voice
-		case "htgotts":
-			go su.SayWithHtgoTts(text) // Female Voice
+		switch currentSpeech {
+			case "espeak": go su.SayWithEspeak(text) // Robotic Voice
+			case "tts": go su.SayWithTTS(text) // Male Voice
+			case "htgotts": go su.SayWithHtgoTts(text) // Female Voice
 		}
 
 		// Reset the msg variable
