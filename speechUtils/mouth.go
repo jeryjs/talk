@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,12 +34,18 @@ func init() {
 func SayWithEspeak(text string) {
 	exec.Command("taskkill", "/im", "espeak.exe", "/T", "/F").Run()
 
-	cmd := exec.Command(espeakBinaryPath, "--path=Z:/Documents/All-Projects/talk/assets", "-v", "en+f3", "-s", "200", text)
+	exe, _ := os.Executable()	// Get the path of the current executable (talk.exe)
+	exePath := filepath.Dir(exe)
+	if contains := strings.Contains(exePath, "go-build"); contains {
+		exePath, _ = os.Getwd()
+	}
+	assetsPath := filepath.Join(exePath, "assets")
+
+	cmd := exec.Command(espeakBinaryPath, "--path="+assetsPath, "-m", "-z", "-v", "en+f3", "-s", "200", text)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
-	if err != nil {
+	err := cmd.Start(); if err != nil {
 		log.Fatal(err)
 	}
 }
