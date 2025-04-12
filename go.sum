@@ -22,6 +22,8 @@ github.com/mattn/go-isatty v0.0.17 h1:BTarxUcIeDqL27Mc+vyvdWYSL28zpIhv3RoTdsLMPn
 github.com/mattn/go-isatty v0.0.17/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
 github.com/sashabaranov/go-openai v1.9.0 h1:NoiO++IISxxJ1pRc0n7uZvMGMake0G+FJ1XPwXtprsA=
 github.com/sashabaranov/go-openai v1.9.0/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
+github.com/sashabaranov/go-openai v1.38.1 h1:TtZabbFQZa1nEni/IhVtDF/WQjVqDgd+cWR5OeddzF8=
+github.com/sashabaranov/go-openai v1.38.1/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/surfaceyu/edge-tts-go v0.1.0 h1:BQ6lsQohW13wYv1XhKOekYMjYWmsS4pDEbDAmOT7vBo=
 github.com/surfaceyu/edge-tts-go v0.1.0/go.mod h1:fr6Fcmc7xnMJuOJn57dLQvi2fNRyY8DKmtYx8X1Mu2k=
 github.com/zhaopuyang/golang-tts v0.0.0-20200222030009-5c7c3b027c6c h1:6tmaDlun71Qhgqcy17qZbj7leuLYa3A1J5lRIEyD1Vg=

@@ -2,7 +2,7 @@ module talk
 
 go 1.20
 
-require github.com/sashabaranov/go-openai v1.9.0
+require github.com/sashabaranov/go-openai v1.38.1
 
 require (
 	github.com/google/uuid v1.3.0 // indirect
