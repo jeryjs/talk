@@ -282,7 +282,11 @@ func ChatWithLiberty(message string) string {
 	// println(chatString)
 
 	// Define the endpoint URL
-	endpoint := "https://curated.aleph.cloud/vm/a8b6d895cfe757d4bc5db9ba30675b5031fe3189a99a14f13d5210c473220caf/completion" // NeuralBeagle 7B
+	// endpoint := "https://code-res.model.libertai.io/completion" // QWQ (32B, reasoning, dev)
+	endpoint := "https://curated.aleph.cloud/vm/84df52ac4466d121ef3bb409bb14f315de7be4ce600e8948d71df6485aa5bcc3/completion" // Hermes 3 (Llama 3.1 8B, fast)
+	// endpoint := "https://curated.aleph.cloud/vm/a8b6d895cfe757d4bc5db9ba30675b5031fe3189a99a14f13d5210c473220caf/completion" // NeuralBeagle 7B
+	// endpoint := "https://curated.aleph.cloud/vm/ad482633bac1f1fae071fb3908c49ebe8d30e3dbeb047051a8ee1b206f2ef830/completion"	// Phi-3-mini (3.8b, long-context)
+	// endpoint := "https://curated.aleph.cloud/vm/9aa80dc7f00c515a5f56b70e65fdab4c367e35f341c3b4220419adb6ca86a33f/completion"	// DeepSeek V3(671B. genius MOE)
 	// endpoint := "https://curated.aleph.cloud/vm/cb6a4ae6bf93599b646aa54d4639152d6ea73eedc709ca547697c56608101fc7/completion" // Mixtral Instruct 8x7B MoE
 	// endpoint := "https://curated.aleph.cloud/vm/b950fef19b109ef3770c89eb08a03b54016556c171b9a32475c085554b594c94/completion"	// DeepSeek Coder 6.7B
 
@@ -290,10 +294,10 @@ func ChatWithLiberty(message string) string {
 	bodyJson, _ := json.Marshal(map[string]interface{}{
 		"prompt":      chatString,
 		"n_predict":   4096,
-		"temperature": 0.4,
-		"top_p":       0.5,
-		"top_k":       80,
-		"stop":        []string{"</s>", "~|Nero:", "~|User:"},
+		"temperature": 0.8,
+		"top_p":       0.9,
+		"top_k":       40,
+		"stop":        []string{"~|Nero:", "~|User:", "~|System:"},
 		"stream":      true,
 	})
 
