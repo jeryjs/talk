@@ -46,7 +46,7 @@ func SayWithEspeak(text string) {
 func SayWithTTS(text string) {
 	// voices := []string{"en-US-AnaNeural", "zh-CN-YunxiaNeural", "zh-CN-YunxiaNeural", "zh-TW-HsiaoChenNeural", "zh-CN-XiaoyiNeural", "zh-CN-XiaoxiaoNeural"}
 	voice := "en-US-AnaNeural"
-	tempAudio, _ := os.Getwd()
+	tempAudio := os.TempDir()
 	tempAudio += "/tempAudio.mp3"
 	args := edgeTTS.Args{
 		Text:       text,
@@ -61,7 +61,7 @@ func SayWithTTS(text string) {
 	edgeTTS.NewTTS(args).AddText(args.Text, args.Voice, args.Rate, args.Volume).Speak()
 
 	// Play temp audio file
-	exec.Command("z:/Applications/MPV/mpv.com", tempAudio).Run()
+	exec.Command("./assets/mpv.com", tempAudio).Run()
 	// Remove temp audio file
 	os.Remove(tempAudio)
 }
