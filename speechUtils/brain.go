@@ -297,14 +297,20 @@ func ChatWithLiberty(message string) string {
 		"temperature": 0.8,
 		"top_p":       0.9,
 		"top_k":       40,
-		"stop":        []string{"~|Nero:", "~|User:", "~|System:"},
+		"stop":        []string{"~|://", "|://", "://>", "~|Nero:", "~|User:", "~|System:"},
 		"stream":      true,
 	})
 
-	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(bodyJson))
+	client := http.Client{}
+	transport := &http.Transport{
+		ResponseHeaderTimeout: 5 * time.Second,
+	}
+	client.Transport = transport
+	resp, err := client.Post(endpoint, "application/json", bytes.NewBuffer(bodyJson))
 	if err != nil {
-		color.HiRed("%s\tPost error: %v\n", time.Now().Format("2023-04-25 10:45:15 AM"), err)
-		return err.Error()
+		color.HiRed("%s\tPost error: %v\n", time.Now().Format("2006-01-02 15:04:05"), err)
+		chatHistory = chatHistory[:len(chatHistory)-1] // remove user message from history
+		return "im too tired right now... lets talk later?"
 	}
 	defer resp.Body.Close()
 
@@ -315,13 +321,17 @@ func ChatWithLiberty(message string) string {
 	if resp.StatusCode == http.StatusOK {
 		reader := bufio.NewReader(resp.Body)
 		var reply string
-		color.Set(color.FgHiCyan) // set console fg to Cyan
+		fmt.Print(len(chatHistory)-InitialHistoryLength, ">\t")
+		color.Set(color.FgHiCyan)
 		for {
-			line, _ := reader.ReadString('\n')
+			line, err := reader.ReadString('\n'); if err != nil {
+				fmt.Printf("Error reading line: %v\n", err)
+				break
+			}
 			line = strings.TrimPrefix(line, "data: ")
 			// fmt.Printf("l(%d) '%s'\n", len(line), line)
 			var data map[string]interface{}
-			err := json.Unmarshal([]byte(line), &data)
+			err = json.Unmarshal([]byte(line), &data)
 			if err == nil {
 				fmt.Print(data["content"].(string))
 				reply += data["content"].(string)
@@ -338,7 +348,8 @@ func ChatWithLiberty(message string) string {
 	} else {
 		// If the response status code is not 200, throw an error
 		body, _ := io.ReadAll(resp.Body)
-		color.HiRed("%s\tFailed to load result: %s\n", time.Now().Format("2023-04-25 10:45:15 AM"), body)
+		color.HiRed("%s\tFailed to load result: %s\n", time.Now().Format("2006-01-02 15:04:05"), body)
+		chatHistory = chatHistory[:len(chatHistory)-1] // remove user message from history
 		return errors.New("Failed to load result: " + resp.Status).Error()
 	}
 }

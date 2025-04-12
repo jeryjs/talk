@@ -26,8 +26,8 @@ func main() {
 	var msg string
 
 	// Define flags
-	text := flag.String("t", "", "Text to say")
-	ai := flag.String("ai", "gpt", "Chat AI to use (gpt/gemini/liberty)")
+	text := flag.String("t", "Hi Nero", "Text to say")
+	ai := flag.String("ai", "gemini", "Chat AI to use (gpt/gemini/liberty)")
 	speech := flag.String("se", "tts", "Speech engine to use (espeak/tts/htgotts)")
 
 	// Parse command line arguments
