@@ -157,7 +157,7 @@ func ChatWithGemini(prompt string) string {
 	}
 
 	// Define the endpoint URL
-	endpoint := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:streamGenerateContent?alt=sse&key=" + apiKey
+	endpoint := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:streamGenerateContent?alt=sse&key=" + apiKey
 
 	// Append the new message to the chatHistory
 	if prompt != "" {
@@ -324,7 +324,8 @@ func ChatWithLiberty(message string) string {
 		fmt.Print(len(chatHistory)-InitialHistoryLength, ">\t")
 		color.Set(color.FgHiCyan)
 		for {
-			line, err := reader.ReadString('\n'); if err != nil {
+			line, err := reader.ReadString('\n')
+			if err != nil {
 				fmt.Printf("Error reading line: %v\n", err)
 				break
 			}
