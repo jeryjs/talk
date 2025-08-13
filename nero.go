@@ -27,6 +27,9 @@ func main() {
 
 	// Start CLI interface
 	cli := cli.NewInterface(runtime)
+	if cli == nil {
+		panic("Failed to initialize CLI - no AI provider available")
+	}
 
 	// Boot the system
 	if err := runtime.Boot(ctx); err != nil {

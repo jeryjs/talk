@@ -9,25 +9,40 @@ import (
 
 	"nero/behavioral"
 	"nero/kernel"
+	"nero/providers"
 
 	"github.com/fatih/color"
 )
 
-// Interface provides the terminal-based interaction system
-type Interface struct {
-	runtime   Runtime
-	behavior  *behavioral.Engine
-	commands  map[string]Command
-	completer *Completer
+// Provide command autocompletion
+type Completer struct {
+	commands []string
 }
 
-// Runtime interface for CLI
+// Create a new autocompletion handler
+func NewCompleter() *Completer {
+	return &Completer{
+		commands: []string{"help", "status", "mood", "run", "open", "exit", "quit"},
+	}
+}
+
+// Provide the terminal-based interaction system
+type Interface struct {
+	runtime        Runtime
+	behavior       *behavioral.Engine
+	aiProvider     providers.AIProvider
+	systemProvider *providers.SystemProvider
+	commands       map[string]Command
+	completer      *Completer
+}
+
+// Represent the CLI runtime interface
 type Runtime interface {
 	SendEvent(event kernel.Event)
 	GetCapability(name string) (kernel.Capability, bool)
 }
 
-// Command represents a CLI command
+// Represent a CLI command
 type Command interface {
 	Name() string
 	Description() string
@@ -35,7 +50,7 @@ type Command interface {
 	Execute(args []string, ctx *CommandContext) error
 }
 
-// CommandContext provides context for command execution
+// Provide context for command execution
 type CommandContext struct {
 	Interface *Interface
 	Session   string
@@ -43,13 +58,34 @@ type CommandContext struct {
 	Args      []string
 }
 
-// NewInterface creates a new CLI interface
+// Create a new CLI interface
 func NewInterface(runtime Runtime) *Interface {
+	// Initialize AI provider (try Ollama first, fallback to OpenAI)
+	var aiProvider providers.AIProvider
+
+	ollama := providers.NewOllamaProvider("llama3.2")
+	if ollama.IsAvailable() {
+		aiProvider = ollama
+		color.New(color.FgGreen).Println("🦙 Using Ollama (local)")
+	} else {
+		openai := providers.NewOpenAIProvider("gpt-4o-mini")
+		if openai.IsAvailable() {
+			aiProvider = openai
+			color.New(color.FgBlue).Println("🌐 Using OpenAI")
+		} else {
+			color.New(color.FgRed).Println("❌ No AI provider available!")
+			color.New(color.FgYellow).Println("💡 Install Ollama or set OpenAI API key")
+			return nil
+		}
+	}
+
 	cli := &Interface{
-		runtime:   runtime,
-		behavior:  behavioral.NewEngine(),
-		commands:  make(map[string]Command),
-		completer: NewCompleter(),
+		runtime:        runtime,
+		behavior:       behavioral.NewEngine(aiProvider),
+		aiProvider:     aiProvider,
+		systemProvider: providers.NewSystemProvider(),
+		commands:       make(map[string]Command),
+		completer:      NewCompleter(),
 	}
 
 	// Register default commands
@@ -58,7 +94,7 @@ func NewInterface(runtime Runtime) *Interface {
 	return cli
 }
 
-// Start begins the interactive CLI session
+// Begin the interactive CLI session
 func (cli *Interface) Start(ctx context.Context) {
 	cli.printWelcome()
 
@@ -86,7 +122,7 @@ func (cli *Interface) Start(ctx context.Context) {
 	}
 }
 
-// processInput handles user input
+// Handle user input
 func (cli *Interface) processInput(input string) {
 	// Check for commands
 	if strings.HasPrefix(input, "/") {
@@ -104,7 +140,7 @@ func (cli *Interface) processInput(input string) {
 	cli.handleChat(input)
 }
 
-// handleCommand processes CLI commands
+// Process CLI commands
 func (cli *Interface) handleCommand(input string) {
 	parts := strings.Fields(input[1:]) // Remove leading /
 	if len(parts) == 0 {
@@ -130,7 +166,7 @@ func (cli *Interface) handleCommand(input string) {
 	}
 }
 
-// handleResourceAccess processes resource access requests
+// Process resource access requests
 func (cli *Interface) handleResourceAccess(input string) {
 	// Extract resources (e.g., #terminal, #screen, #code)
 	resources := cli.extractResources(input)
@@ -145,20 +181,26 @@ func (cli *Interface) handleResourceAccess(input string) {
 	cli.handleChat(cleanInput)
 }
 
-// handleChat processes regular chat input
+// Process regular chat input with real AI
 func (cli *Interface) handleChat(input string) {
-	// TODO: Route to AI model
-	// For now, generate a simple response
-	baseResponse := "I understand what you're saying..."
+	ctx := context.Background()
 
-	// Process through behavioral engine
-	response := cli.behavior.ProcessResponse(input, baseResponse)
+	// Process through behavioral engine (now with real AI)
+	response, err := cli.behavior.ProcessResponse(ctx, input)
+	if err != nil {
+		cli.printError(fmt.Sprintf("AI Error: %v", err))
+		// Fallback response
+		response = &behavioral.Response{
+			Text: "Hmph! Something went wrong with my thinking... *looks annoyed*",
+			Tone: "annoyed",
+		}
+	}
 
 	// Display response with formatting
 	cli.displayResponse(response)
 }
 
-// displayResponse shows Nero's response with proper formatting
+// Show Nero's response with proper formatting
 func (cli *Interface) displayResponse(response *behavioral.Response) {
 	// Set color based on tone
 	var colorFunc func(string, ...interface{}) string
@@ -180,7 +222,7 @@ func (cli *Interface) displayResponse(response *behavioral.Response) {
 	fmt.Printf("%s\n\n", colorFunc(response.Text))
 }
 
-// printWelcome displays the welcome message
+// Display the welcome message
 func (cli *Interface) printWelcome() {
 	welcome := `
 ╔═══════════════════════════════════════╗
@@ -200,7 +242,7 @@ func (cli *Interface) printWelcome() {
 	color.New(color.FgMagenta, color.Bold).Print(welcome)
 }
 
-// printGoodbye displays the goodbye message
+// Display the goodbye message
 func (cli *Interface) printGoodbye() {
 	goodbye := `
 💜 *ruffles feathers* Leaving already? 
@@ -213,7 +255,7 @@ func (cli *Interface) printGoodbye() {
 	color.New(color.FgMagenta).Print(goodbye)
 }
 
-// printPrompt displays the input prompt
+// Display the input prompt
 func (cli *Interface) printPrompt() {
 	state := cli.behavior.GetState()
 	mood := getMoodEmoji(state.Mood.Primary)
@@ -226,12 +268,12 @@ func (cli *Interface) printPrompt() {
 	color.New(color.FgHiYellow).Printf("❯ ")
 }
 
-// printError displays error messages
+// Display error messages
 func (cli *Interface) printError(message string) {
 	color.New(color.FgRed).Printf("❌ %s\n", message)
 }
 
-// extractResources finds resource tags in input
+// Find resource tags in input
 func (cli *Interface) extractResources(input string) []string {
 	var resources []string
 	words := strings.Fields(input)
@@ -245,7 +287,7 @@ func (cli *Interface) extractResources(input string) []string {
 	return resources
 }
 
-// removeResourceTags removes resource tags from input
+// Remove resource tags from input
 func (cli *Interface) removeResourceTags(input string) string {
 	words := strings.Fields(input)
 	var cleaned []string
@@ -259,7 +301,7 @@ func (cli *Interface) removeResourceTags(input string) string {
 	return strings.Join(cleaned, " ")
 }
 
-// processResource handles specific resource access
+// Handle specific resource access
 func (cli *Interface) processResource(resource string, input string) {
 	color.New(color.FgCyan).Printf("🔍 Accessing %s resource...\n", resource)
 
@@ -276,25 +318,92 @@ func (cli *Interface) processResource(resource string, input string) {
 	}
 }
 
-// handleTerminalResource processes terminal context
+// Process terminal context
 func (cli *Interface) handleTerminalResource() {
-	// TODO: Capture terminal state, command history, etc.
-	color.New(color.FgGreen).Println("📟 Terminal context captured")
+	// Get current working directory
+	cwd, _ := cli.systemProvider.GetWorkingDirectory()
+	color.New(color.FgGreen).Printf("📟 Terminal context captured - CWD: %s\n", cwd)
 }
 
-// handleScreenResource processes screen context
+// Process screen context
 func (cli *Interface) handleScreenResource() {
-	// TODO: Capture screen content, active windows, etc.
+	// TODO: Implement screen capture when needed
 	color.New(color.FgGreen).Println("🖥️  Screen context captured")
 }
 
-// handleCodeResource processes code context
+// Process code context
 func (cli *Interface) handleCodeResource() {
-	// TODO: Capture current code, git status, etc.
-	color.New(color.FgGreen).Println("💻 Code context captured")
+	// Get git status if in a git repo
+	if output, err := cli.systemProvider.RunCommand("git", "status", "--porcelain"); err == nil {
+		if strings.TrimSpace(output) != "" {
+			color.New(color.FgGreen).Printf("💻 Code context captured - Git changes detected\n")
+		} else {
+			color.New(color.FgGreen).Printf("💻 Code context captured - Git clean\n")
+		}
+	} else {
+		color.New(color.FgGreen).Println("💻 Code context captured")
+	}
 }
 
-// getMoodEmoji returns an emoji for the current mood
+// Handle system commands within chat
+func (cli *Interface) executeSystemCommand(command string) {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return
+	}
+
+	cmd := parts[0]
+	args := parts[1:]
+
+	switch cmd {
+	case "open":
+		if len(args) > 0 {
+			if err := cli.systemProvider.OpenApp(args[0]); err != nil {
+				cli.printError(fmt.Sprintf("Failed to open %s: %v", args[0], err))
+			} else {
+				color.New(color.FgGreen).Printf("🚀 Opened %s\n", args[0])
+			}
+		}
+	case "run":
+		if len(args) > 0 {
+			output, err := cli.systemProvider.RunCommand(args[0], args[1:]...)
+			if err != nil {
+				cli.printError(fmt.Sprintf("Command failed: %v", err))
+			} else {
+				color.New(color.FgCyan).Printf("Command output:\n%s\n", output)
+			}
+		}
+	case "cd":
+		if len(args) > 0 {
+			if err := cli.systemProvider.ChangeDirectory(args[0]); err != nil {
+				cli.printError(fmt.Sprintf("Failed to change directory: %v", err))
+			} else {
+				color.New(color.FgGreen).Printf("📁 Changed to %s\n", args[0])
+			}
+		}
+	case "ls", "dir":
+		cwd, _ := cli.systemProvider.GetWorkingDirectory()
+		files, err := cli.systemProvider.ListDirectory(cwd)
+		if err != nil {
+			cli.printError(fmt.Sprintf("Failed to list directory: %v", err))
+		} else {
+			color.New(color.FgCyan).Println("📂 Directory contents:")
+			for _, file := range files {
+				fmt.Printf("  %s\n", file)
+			}
+		}
+	default:
+		// Try to run as system command
+		output, err := cli.systemProvider.RunCommand(cmd, args...)
+		if err != nil {
+			cli.printError(fmt.Sprintf("Unknown command or error: %v", err))
+		} else {
+			color.New(color.FgCyan).Printf("Output:\n%s\n", output)
+		}
+	}
+}
+
+// Return an emoji for the current mood
 func getMoodEmoji(mood string) string {
 	switch mood {
 	case "happy":

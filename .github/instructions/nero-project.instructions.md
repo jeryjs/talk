@@ -63,13 +63,54 @@ The project owner is:
 ### File Organization
 ```
 nero/
-├── kernel/          # Core runtime & orchestration
-├── behavioral/      # Dynamic behavior engine  
-├── interfaces/      # Advanced I/O abstraction
-├── capabilities/    # Extensible capability framework
-├── protocols/       # Communication protocols
-├── extensions/      # Capability implementations
-└── cli/            # Terminal interface
+├── kernel/                     # Core runtime & orchestration
+│   ├── runtime.go             # Event loop, scheduling, concurrency
+│   ├── memory.go              # Advanced context & state management  
+│   ├── registry.go            # Dynamic capability registration
+│   ├── ipc.go                 # Inter-process/plugin communication
+│   └── security.go            # Sandboxing, permissions, isolation
+├── behavioral/                 # Dynamic behavior engine
+│   ├── engine.go              # State machine for personalities/modes
+│   ├── adaptation.go          # Learning & adaptation systems
+│   └── expression.go          # Real-time expression/emotion system
+├── interfaces/                 # Advanced I/O abstraction layer
+│   ├── spatial/               # 3D/spatial interaction systems
+│   │   ├── screen.go          # Real-time screen manipulation
+│   │   ├── windows.go         # Window management & automation
+│   │   └── gestures.go        # Gesture recognition & execution
+│   ├── temporal/              # Time-based interaction systems
+│   │   ├── keybinds.go        # Multi-stage, context-aware bindings
+│   │   ├── macros.go          # Complex automation sequences
+│   │   └── scheduling.go      # Advanced task scheduling
+│   ├── sensory/               # Multi-modal input processing
+│   │   ├── vision.go          # Real-time visual processing
+│   │   ├── audio.go           # Advanced audio I/O & processing
+│   │   └── haptic.go          # Future: haptic feedback systems
+│   └── neural/                # AI interface abstraction
+│       ├── inference.go       # Multi-model inference routing
+│       ├── streaming.go       # Real-time streaming protocols
+│       └── multimodal.go      # Advanced multimodal processing
+├── capabilities/               # Extensible capability framework
+│   ├── loader.go              # Dynamic capability loading
+│   ├── graph.go               # Capability dependency graph
+│   ├── mesh.go                # Capability intercommunication
+│   └── lifecycle.go           # Advanced lifecycle management
+├── protocols/                  # Communication & integration protocols
+│   ├── mcp/                   # Model Context Protocol implementation
+│   ├── lsp/                   # Language Server Protocol integration
+│   ├── dap/                   # Debug Adapter Protocol integration
+│   └── custom/                # Custom protocol definitions
+├── extensions/                 # Capability implementations
+│   ├── core/                  # Essential capabilities
+│   ├── system/                # OS-level integrations
+│   ├── development/           # Developer tools
+│   ├── automation/            # Advanced automation systems
+│   └── experimental/          # Bleeding-edge features
+└── cli/                       # Advanced terminal interface
+    ├── repl.go                # Rich, context-aware REPL
+    ├── completion.go          # AI-powered autocompletion
+    ├── visualization.go       # In-terminal rich content
+    └── shortcuts.go           # Advanced shortcut system
 ```
 
 ### Extension Architecture

@@ -2,250 +2,179 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
+
+	"github.com/fatih/color"
 )
 
-// Provide autocompletion for commands and resources.
-type Completer struct {
-	commands  []string
-	resources []string
-}
-
-// Create a new autocompletion system.
-func NewCompleter() *Completer {
-	return &Completer{
-		commands: []string{
-			"help", "banter", "force", "transform", "voice", "mood",
-			"status", "capabilities", "config", "debug", "quit",
-		},
-		resources: []string{
-			"terminal", "screen", "code", "git", "system", "network",
-			"files", "process", "memory", "clipboard", "audio", "video",
-		},
-	}
-}
-
-// Provide autocompletion suggestions.
-func (c *Completer) Complete(input string) []string {
-	if strings.HasPrefix(input, "/") {
-		return c.completeCommand(input[1:])
-	}
-
-	if strings.HasPrefix(input, "#") {
-		return c.completeResource(input[1:])
-	}
-
-	return []string{}
-}
-
-// Provide command completions for partial input
-func (c *Completer) completeCommand(partial string) []string {
-	var matches []string
-
-	for _, cmd := range c.commands {
-		if strings.HasPrefix(cmd, partial) {
-			matches = append(matches, "/"+cmd)
-		}
-	}
-
-	return matches
-}
-
-// Provide resource completions for partial input
-func (c *Completer) completeResource(partial string) []string {
-	var matches []string
-
-	for _, resource := range c.resources {
-		if strings.HasPrefix(resource, partial) {
-			matches = append(matches, "#"+resource)
-		}
-	}
-
-	return matches
-}
-
-// Add a new command for completion
-func (c *Completer) AddCommand(command string) {
-	c.commands = append(c.commands, command)
-}
-
-// Add a new resource for completion
-func (c *Completer) AddResource(resource string) {
-	c.resources = append(c.resources, resource)
-}
-
-// Set up built-in commands for the CLI
-func (cli *Interface) registerDefaultCommands() {
-	cli.commands["help"] = &HelpCommand{}
-	cli.commands["banter"] = &BanterCommand{}
-	cli.commands["force"] = &ForceCommand{}
-	cli.commands["transform"] = &TransformCommand{}
-	cli.commands["voice"] = &VoiceCommand{}
-	cli.commands["mood"] = &MoodCommand{}
-	cli.commands["status"] = &StatusCommand{}
-	cli.commands["quit"] = &QuitCommand{}
-}
-
-// Show available commands and help info
+// Show available commands
 type HelpCommand struct{}
 
-func (h *HelpCommand) Name() string        { return "help" }
-func (h *HelpCommand) Description() string { return "Show available commands" }
-func (h *HelpCommand) Usage() string       { return "/help [command]" }
+func (c *HelpCommand) Name() string        { return "help" }
+func (c *HelpCommand) Description() string { return "Show available commands" }
+func (c *HelpCommand) Usage() string       { return "/help" }
 
-func (h *HelpCommand) Execute(args []string, ctx *CommandContext) error {
-	if len(args) > 0 {
-		// Show help for a specific command
-		cmd, exists := ctx.Interface.commands[args[0]]
-		if !exists {
-			return fmt.Errorf("unknown command: %s", args[0])
-		}
+func (c *HelpCommand) Execute(args []string, ctx *CommandContext) error {
+	help := `
+🎭 Available Commands:
 
-		fmt.Printf("Command: %s\n", cmd.Name())
-		fmt.Printf("Description: %s\n", cmd.Description())
-		fmt.Printf("Usage: %s\n", cmd.Usage())
-		return nil
-	}
+🗣️  Chat Commands:
+  /mood <state>     Set emotional state (happy, sad, excited, grumpy)
+  /status           Show system and mood status
 
-	// Show all commands
-	fmt.Println("Available commands:")
-	for name, cmd := range ctx.Interface.commands {
-		fmt.Printf("  /%s - %s\n", name, cmd.Description())
-	}
+💻 System Commands:
+  /run <command>    Execute system command or script
+  /open <app>       Open application (notepad, calculator, etc.)
 
-	fmt.Println("\nAvailable resources:")
-	for _, resource := range ctx.Interface.completer.resources {
-		fmt.Printf("  #%s\n", resource)
-	}
+🏃 Control:
+  /exit, /quit      Exit gracefully
+  /help             Show this help
 
-	return nil
-}
+💡 Pro Tips:
+  • Talk naturally - Nero understands context!
+  • Use #terminal, #screen, #code for resource access
+  • Nero remembers your conversations across sessions
 
-// Enable casual conversation mode
-type BanterCommand struct{}
-
-func (b *BanterCommand) Name() string        { return "banter" }
-func (b *BanterCommand) Description() string { return "Switch to casual conversation mode" }
-func (b *BanterCommand) Usage() string       { return "/banter" }
-
-func (b *BanterCommand) Execute(args []string, ctx *CommandContext) error {
-	ctx.Interface.behavior.UpdateMood("happy", 0.8)
-	fmt.Println("😊 *perks up* Oh, you want to chat? Well... I suppose I have time...")
-	return nil
-}
-
-// Bypass Nero's usual personality filters for direct responses
-type ForceCommand struct{}
-
-func (f *ForceCommand) Name() string        { return "force" }
-func (f *ForceCommand) Description() string { return "Force direct responses (bypasses personality)" }
-func (f *ForceCommand) Usage() string       { return "/force <message>" }
-
-func (f *ForceCommand) Execute(args []string, ctx *CommandContext) error {
-	if len(args) == 0 {
-		return fmt.Errorf("force command requires a message")
-	}
-
-	message := strings.Join(args, " ")
-	fmt.Printf("💪 [DIRECT MODE] Processing: %s\n", message)
-
-	// Process without personality filters
-	return nil
-}
-
-// Manipulate text according to user instructions
-type TransformCommand struct{}
-
-func (t *TransformCommand) Name() string        { return "transform" }
-func (t *TransformCommand) Description() string { return "Transform text according to instructions" }
-func (t *TransformCommand) Usage() string       { return "/transform <text> <instruction>" }
-
-func (t *TransformCommand) Execute(args []string, ctx *CommandContext) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: /transform <text> <instruction>")
-	}
-
-	text := args[0]
-	instruction := strings.Join(args[1:], " ")
-
-	// Pass text and instruction to the model for transformation
-	fmt.Printf("[transform] Would apply instruction '%s' to text: %s\n", instruction, text)
-	return nil
-}
-
-// Change voice settings
-type VoiceCommand struct{}
-
-func (v *VoiceCommand) Name() string        { return "voice" }
-func (v *VoiceCommand) Description() string { return "Change voice settings" }
-func (v *VoiceCommand) Usage() string       { return "/voice <type>" }
-
-func (v *VoiceCommand) Execute(args []string, ctx *CommandContext) error {
-	if len(args) == 0 {
-		fmt.Println("Available voices: soft, energetic, sultry, robotic")
-		return nil
-	}
-
-	voice := args[0]
-	fmt.Printf("🔊 *voice changes* Switching to %s voice...\n", voice)
-
-	// Implement voice switching
-	return nil
-}
-
-// Set Nero's mood manually
-type MoodCommand struct{}
-
-func (m *MoodCommand) Name() string        { return "mood" }
-func (m *MoodCommand) Description() string { return "Set Nero's mood" }
-func (m *MoodCommand) Usage() string       { return "/mood <mood>" }
-
-func (m *MoodCommand) Execute(args []string, ctx *CommandContext) error {
-	if len(args) == 0 {
-		state := ctx.Interface.behavior.GetState()
-		fmt.Printf("Current mood: %s (intensity: %.1f)\n",
-			state.Mood.Primary, state.Mood.Intensity)
-		return nil
-	}
-
-	mood := args[0]
-	ctx.Interface.behavior.UpdateMood(mood, 0.7)
-	fmt.Printf("💭 *mood shifts* Now feeling %s...\n", mood)
-
+Example: "Nero, please help me open VS Code" or "/run git status"
+`
+	color.New(color.FgCyan).Print(help)
 	return nil
 }
 
 // Show system status
 type StatusCommand struct{}
 
-func (s *StatusCommand) Name() string        { return "status" }
-func (s *StatusCommand) Description() string { return "Show system status" }
-func (s *StatusCommand) Usage() string       { return "/status" }
+func (c *StatusCommand) Name() string        { return "status" }
+func (c *StatusCommand) Description() string { return "Show system status" }
+func (c *StatusCommand) Usage() string       { return "/status" }
 
-func (s *StatusCommand) Execute(args []string, ctx *CommandContext) error {
-	state := ctx.Interface.behavior.GetState()
+func (c *StatusCommand) Execute(args []string, ctx *CommandContext) error {
+	status := `
+📊 System Status:
 
-	fmt.Println("🔍 Nero System Status:")
-	fmt.Printf("  Personality: %s\n", state.Personality.Name)
-	fmt.Printf("  Mood: %s (%.1f)\n", state.Mood.Primary, state.Mood.Intensity)
-	fmt.Printf("  Energy: %.1f%%\n", state.Energy*100)
-	fmt.Printf("  Confidence: %.1f%%\n", state.Confidence*100)
-	fmt.Printf("  Engagement: %.1f%%\n", state.Engagement*100)
+🧠 Memory: Active and persistent
+🎭 Behavioral Engine: Operational
+🤖 AI Provider: Connected
+💾 Session Storage: Available
 
-	// Show capability status, memory usage, etc.
+Nero Status: Ready to assist (with attitude!) 💜
+`
+	color.New(color.FgGreen).Print(status)
+	return nil
+}
+
+// Change Nero's mood
+type MoodCommand struct{}
+
+func (c *MoodCommand) Name() string        { return "mood" }
+func (c *MoodCommand) Description() string { return "Set Nero's emotional state" }
+func (c *MoodCommand) Usage() string       { return "/mood <happy|sad|excited|grumpy|confident>" }
+
+func (c *MoodCommand) Execute(args []string, ctx *CommandContext) error {
+	if len(args) == 0 {
+		return fmt.Errorf("please specify a mood: happy, sad, excited, grumpy, confident")
+	}
+
+	mood := strings.ToLower(args[0])
+
+	// Update behavioral engine mood
+	ctx.Interface.behavior.UpdateMood(mood, 0.8)
+
+	emoji := getMoodEmoji(mood)
+	color.New(color.FgMagenta).Printf("💫 Mood updated to: %s %s\n", mood, emoji)
+	color.New(color.FgMagenta).Printf("Nero: *adjusts mood* Fine... if that's what you want... 😤\n")
 
 	return nil
 }
 
-// Exit the application
-type QuitCommand struct{}
+// Execute system commands
+type RunCommand struct{}
 
-func (q *QuitCommand) Name() string        { return "quit" }
-func (q *QuitCommand) Description() string { return "Exit Nero" }
-func (q *QuitCommand) Usage() string       { return "/quit" }
+func (c *RunCommand) Name() string        { return "run" }
+func (c *RunCommand) Description() string { return "Execute system command" }
+func (c *RunCommand) Usage() string       { return "/run <command> [args...]" }
 
-func (q *QuitCommand) Execute(args []string, ctx *CommandContext) error {
-	fmt.Println("👋 *waves wing* Goodbye!")
-	// Trigger graceful shutdown
+func (c *RunCommand) Execute(args []string, ctx *CommandContext) error {
+	if len(args) == 0 {
+		return fmt.Errorf("please specify a command to run")
+	}
+
+	color.New(color.FgYellow).Printf("🔧 Executing: %s\n", strings.Join(args, " "))
+	color.New(color.FgMagenta).Println("Nero: *reluctantly* Fine, I'll run your command... but don't blame me if something breaks! 😤")
+
+	// Run command through system provider
+	output, err := ctx.Interface.systemProvider.RunCommand(args[0], args[1:]...)
+	if err != nil {
+		return fmt.Errorf("command failed: %v", err)
+	}
+
+	if strings.TrimSpace(output) != "" {
+		color.New(color.FgCyan).Printf("Output:\n%s\n", output)
+	} else {
+		color.New(color.FgGreen).Println("✅ Command executed successfully")
+	}
+
 	return nil
+}
+
+// Open applications
+type OpenCommand struct{}
+
+func (c *OpenCommand) Name() string        { return "open" }
+func (c *OpenCommand) Description() string { return "Open application" }
+func (c *OpenCommand) Usage() string       { return "/open <app>" }
+
+func (c *OpenCommand) Execute(args []string, ctx *CommandContext) error {
+	if len(args) == 0 {
+		return fmt.Errorf("please specify an application to open")
+	}
+
+	app := strings.Join(args, " ")
+
+	color.New(color.FgYellow).Printf("🚀 Opening: %s\n", app)
+	color.New(color.FgMagenta).Println("Nero: *sighs* There... your precious application is starting. You're welcome! 💜")
+
+	err := ctx.Interface.systemProvider.OpenApp(app)
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %v", app, err)
+	}
+
+	color.New(color.FgGreen).Printf("✅ %s opened successfully\n", app)
+	return nil
+}
+
+// Exit the application
+type ExitCommand struct{}
+
+func (c *ExitCommand) Name() string        { return "exit" }
+func (c *ExitCommand) Description() string { return "Exit Nero" }
+func (c *ExitCommand) Usage() string       { return "/exit or /quit" }
+
+func (c *ExitCommand) Execute(args []string, ctx *CommandContext) error {
+	color.New(color.FgMagenta).Println("\n💜 Nero: *pouts* F-Fine! But... you better come back soon, okay?")
+	color.New(color.FgCyan).Println("Shutting down gracefully...")
+	os.Exit(0)
+	return nil
+}
+
+// Register all default commands
+func (cli *Interface) registerDefaultCommands() {
+	commands := []Command{
+		&HelpCommand{},
+		&StatusCommand{},
+		&MoodCommand{},
+		&RunCommand{},
+		&OpenCommand{},
+		&ExitCommand{},
+	}
+
+	for _, cmd := range commands {
+		cli.commands[cmd.Name()] = cmd
+
+		// Register aliases for exit command
+		if cmd.Name() == "exit" {
+			cli.commands["quit"] = cmd
+		}
+	}
 }
