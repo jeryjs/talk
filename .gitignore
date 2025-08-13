@@ -1,4 +1,3 @@
-openai.key
-gemini.key
+.vscode/
 tempAudio
 memory.json
