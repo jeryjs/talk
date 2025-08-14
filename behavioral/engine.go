@@ -53,9 +53,29 @@ type Response struct {
 	Metadata   map[string]interface{}
 }
 
-// Create a new AI-driven behavioral engine
-func NewEngine(aiProvider providers.AIProvider) *Engine {
+// Create a new AI-driven behavioral engine with core integration
+func NewEngine(core interface{}) *Engine {
+	// For now, we'll use a simple provider approach
+	// TODO: Integrate with the new kernel core properly
+
 	memoryProvider := providers.NewMemoryProvider()
+
+	// Use first available AI provider
+	var aiProvider providers.AIProvider
+	ollama := providers.NewOllamaProvider("llama3.2")
+	if ollama.IsAvailable() {
+		aiProvider = ollama
+	} else {
+		openai := providers.NewOpenAIProvider("gpt-4o-mini")
+		if openai.IsAvailable() {
+			aiProvider = openai
+		}
+	}
+
+	if aiProvider == nil {
+		return nil
+	}
+
 	kaomojiProvider := providers.NewKaomojiProvider(aiProvider)
 
 	personality := &PersonalityCore{

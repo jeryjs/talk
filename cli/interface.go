@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"nero/behavioral"
 	"nero/kernel"
@@ -22,24 +23,19 @@ type Completer struct {
 // Create a new autocompletion handler
 func NewCompleter() *Completer {
 	return &Completer{
-		commands: []string{"help", "status", "mood", "run", "open", "exit", "quit"},
+		commands: []string{"help", "status", "mood", "run", "open", "exit", "quit", "provider", "stream", "thoughts"},
 	}
 }
 
-// Provide the terminal-based interaction system
+// Provide the terminal-based interaction system with streaming
 type Interface struct {
-	runtime        Runtime
-	behavior       *behavioral.Engine
-	aiProvider     providers.AIProvider
-	systemProvider *providers.SystemProvider
-	commands       map[string]Command
-	completer      *Completer
-}
-
-// Represent the CLI runtime interface
-type Runtime interface {
-	SendEvent(event kernel.Event)
-	GetCapability(name string) (kernel.Capability, bool)
+	core            *kernel.Core
+	behavior        *behavioral.Engine
+	systemProvider  *providers.SystemProvider
+	commands        map[string]Command
+	completer       *Completer
+	renderer        *StreamingRenderer
+	thoughtRenderer *ThoughtRenderer
 }
 
 // Represent a CLI command
@@ -58,34 +54,44 @@ type CommandContext struct {
 	Args      []string
 }
 
-// Create a new CLI interface
-func NewInterface(runtime Runtime) *Interface {
-	// Initialize AI provider (try Ollama first, fallback to OpenAI)
-	var aiProvider providers.AIProvider
+// Create a new CLI interface with advanced streaming capabilities
+func NewInterface(runtime interface{}) *Interface {
+	// Initialize the new kernel core
+	core := kernel.NewCore()
+	if err := core.Initialize(); err != nil {
+		color.New(color.FgRed).Printf("❌ Failed to initialize AI core: %v\n", err)
+		return nil
+	}
 
-	ollama := providers.NewOllamaProvider("llama3.2")
-	if ollama.IsAvailable() {
-		aiProvider = ollama
+	// Show which providers are available
+	availableProviders := core.GetAvailableProviders()
+	if len(availableProviders) == 0 {
+		color.New(color.FgRed).Println("❌ No AI providers available!")
+		color.New(color.FgYellow).Println("💡 Install Ollama or set API keys (OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY)")
+		return nil
+	}
+
+	// Show active provider
+	activeProvider := core.GetActiveProvider()
+	switch activeProvider {
+	case "ollama":
 		color.New(color.FgGreen).Println("🦙 Using Ollama (local)")
-	} else {
-		openai := providers.NewOpenAIProvider("gpt-4o-mini")
-		if openai.IsAvailable() {
-			aiProvider = openai
-			color.New(color.FgBlue).Println("🌐 Using OpenAI")
-		} else {
-			color.New(color.FgRed).Println("❌ No AI provider available!")
-			color.New(color.FgYellow).Println("💡 Install Ollama or set OpenAI API key")
-			return nil
-		}
+	case "openai":
+		color.New(color.FgBlue).Println("🌐 Using OpenAI")
+	case "gemini":
+		color.New(color.FgMagenta).Println("💎 Using Google Gemini")
+	case "groq":
+		color.New(color.FgYellow).Println("⚡ Using Groq")
 	}
 
 	cli := &Interface{
-		runtime:        runtime,
-		behavior:       behavioral.NewEngine(aiProvider),
-		aiProvider:     aiProvider,
-		systemProvider: providers.NewSystemProvider(),
-		commands:       make(map[string]Command),
-		completer:      NewCompleter(),
+		core:            core,
+		behavior:        behavioral.NewEngine(core),
+		systemProvider:  providers.NewSystemProvider(),
+		commands:        make(map[string]Command),
+		completer:       NewCompleter(),
+		renderer:        NewStreamingRenderer(),
+		thoughtRenderer: NewThoughtRenderer(),
 	}
 
 	// Register default commands
@@ -94,7 +100,7 @@ func NewInterface(runtime Runtime) *Interface {
 	return cli
 }
 
-// Begin the interactive CLI session
+// Start the interactive CLI session with streaming support
 func (cli *Interface) Start(ctx context.Context) {
 	cli.printWelcome()
 
@@ -122,7 +128,7 @@ func (cli *Interface) Start(ctx context.Context) {
 	}
 }
 
-// Handle user input
+// Process user input with streaming support
 func (cli *Interface) processInput(input string) {
 	// Check for commands
 	if strings.HasPrefix(input, "/") {
@@ -136,11 +142,11 @@ func (cli *Interface) processInput(input string) {
 		return
 	}
 
-	// Regular chat input
-	cli.handleChat(input)
+	// Regular chat input - now with streaming!
+	cli.handleChatStreaming(input)
 }
 
-// Process CLI commands
+// Handle commands
 func (cli *Interface) handleCommand(input string) {
 	parts := strings.Fields(input[1:]) // Remove leading /
 	if len(parts) == 0 {
@@ -166,7 +172,7 @@ func (cli *Interface) handleCommand(input string) {
 	}
 }
 
-// Process resource access requests
+// Handle resource access
 func (cli *Interface) handleResourceAccess(input string) {
 	// Extract resources (e.g., #terminal, #screen, #code)
 	resources := cli.extractResources(input)
@@ -178,29 +184,134 @@ func (cli *Interface) handleResourceAccess(input string) {
 
 	// Continue with normal chat processing
 	cleanInput := cli.removeResourceTags(input)
-	cli.handleChat(cleanInput)
+	cli.handleChatStreaming(cleanInput)
 }
 
-// Process regular chat input with real AI
-func (cli *Interface) handleChat(input string) {
+// Handle chat with real-time streaming and thoughts
+func (cli *Interface) handleChatStreaming(input string) {
 	ctx := context.Background()
 
-	// Process through behavioral engine (now with real AI)
-	response, err := cli.behavior.ProcessResponse(ctx, input)
-	if err != nil {
-		cli.printError(fmt.Sprintf("AI Error: %v", err))
-		// Fallback response
-		response = &behavioral.Response{
-			Text: "Hmph! Something went wrong with my thinking... *looks annoyed*",
-			Tone: "annoyed",
+	// Process through behavioral engine first for personality
+	if cli.behavior != nil {
+		response, err := cli.behavior.ProcessResponse(ctx, input)
+		if err != nil {
+			cli.printError(fmt.Sprintf("Behavioral processing error: %v", err))
+		} else {
+			// Display the behavioral response with streaming simulation
+			cli.simulateStreaming(response.Text, response.Tone)
+			return
 		}
 	}
 
-	// Display response with formatting
-	cli.displayResponse(response)
+	// Fallback to direct core processing
+	req := &kernel.AIRequest{
+		Messages: []providers.Message{
+			{Role: "user", Content: input},
+		},
+		EnableStream:   true,
+		EnableThoughts: true,
+		Temperature:    0.8,
+		MaxTokens:      500,
+	}
+
+	// Process request through kernel core
+	response, err := cli.core.ProcessRequest(ctx, req)
+	if err != nil {
+		cli.printError(fmt.Sprintf("AI Error: %v", err))
+		return
+	}
+
+	// Handle streaming response
+	if response.StreamID != "" {
+		cli.handleStreamingResponse(ctx, response.StreamID, input)
+	} else {
+		// Fallback to non-streaming display
+		cli.displayResponse(&behavioral.Response{
+			Text: response.Content,
+			Tone: "neutral",
+		})
+	}
 }
 
-// Show Nero's response with proper formatting
+// Simulate streaming for behavioral responses
+func (cli *Interface) simulateStreaming(text string, tone string) {
+	// Start streaming visualization
+	cli.renderer.StartStreaming()
+
+	// Simulate word-by-word streaming
+	words := strings.Fields(text)
+	for _, word := range words {
+		cli.renderer.AddContent(word+" ", false)
+		// Small delay to simulate typing
+		time.Sleep(time.Millisecond * 50)
+	}
+
+	cli.renderer.StopStreaming()
+}
+
+// Handle real-time streaming response with thoughts
+func (cli *Interface) handleStreamingResponse(ctx context.Context, streamID string, originalInput string) {
+	// Get the streaming channel
+	streamChan, exists := cli.core.GetStreamChannel(streamID)
+	if !exists {
+		cli.printError("Stream not found")
+		return
+	}
+
+	// Start streaming visualization
+	cli.renderer.StartStreaming()
+
+	var fullResponse strings.Builder
+	thoughtsStarted := false
+
+	// Process streaming chunks in real-time
+	for {
+		select {
+		case chunk, ok := <-streamChan:
+			if !ok {
+				// Stream closed
+				cli.renderer.StopStreaming()
+				return
+			}
+
+			if chunk.Error != nil {
+				cli.printError(fmt.Sprintf("Streaming error: %v", chunk.Error))
+				cli.renderer.StopStreaming()
+				return
+			}
+
+			if chunk.IsThought {
+				// Handle thought streaming
+				if !thoughtsStarted {
+					thoughtsStarted = true
+					cli.renderer.thoughtRenderer.StartThinking()
+				}
+				cli.renderer.AddThought(chunk.Content)
+			} else {
+				// Handle regular response streaming
+				if thoughtsStarted {
+					// Stop thoughts and start response
+					cli.renderer.thoughtRenderer.StopThinking()
+					thoughtsStarted = false
+				}
+
+				cli.renderer.AddContent(chunk.Content, false)
+				fullResponse.WriteString(chunk.Content)
+			}
+
+			if chunk.Done {
+				cli.renderer.StopStreaming()
+				return
+			}
+
+		case <-ctx.Done():
+			cli.renderer.StopStreaming()
+			return
+		}
+	}
+}
+
+// Display non-streaming response (fallback)
 func (cli *Interface) displayResponse(response *behavioral.Response) {
 	// Set color based on tone
 	var colorFunc func(string, ...interface{}) string
@@ -215,25 +326,26 @@ func (cli *Interface) displayResponse(response *behavioral.Response) {
 	case "flustered":
 		colorFunc = color.New(color.FgRed).Sprintf
 	default:
-		colorFunc = color.New(color.FgHiCyan).Sprintf
+		colorFunc = color.New(color.FgMagenta).Sprintf
 	}
 
 	// Print response with formatting
 	fmt.Printf("%s\n\n", colorFunc(response.Text))
 }
 
-// Display the welcome message
+// Print welcome message
 func (cli *Interface) printWelcome() {
 	welcome := `
 ╔═══════════════════════════════════════╗
 ║              🐦 NERO v2.0              ║
-║        Personal AI Agent System       ║
+║     Personal AI Agent • Streaming     ║
 ╚═══════════════════════════════════════╝
 
 💜 *stretches wings* Well, well... you're back after all this time?
    I suppose you expect me to be impressed by this "upgrade"...
    
-   Type /help for commands, or just talk to me normally.
+   Now with REAL streaming responses and live thoughts! ✨
+   Type /help for commands, or just talk to me naturally.
    Use #resources to access system capabilities.
    
 *settles on virtual perch* Let's see what you've got...
@@ -242,7 +354,7 @@ func (cli *Interface) printWelcome() {
 	color.New(color.FgMagenta, color.Bold).Print(welcome)
 }
 
-// Display the goodbye message
+// Print goodbye message
 func (cli *Interface) printGoodbye() {
 	goodbye := `
 💜 *ruffles feathers* Leaving already? 
@@ -255,10 +367,15 @@ func (cli *Interface) printGoodbye() {
 	color.New(color.FgMagenta).Print(goodbye)
 }
 
-// Display the input prompt
+// Print input prompt
 func (cli *Interface) printPrompt() {
-	state := cli.behavior.GetState()
-	mood := getMoodEmoji(state.Mood.Primary)
+	var mood string
+	if cli.behavior != nil {
+		state := cli.behavior.GetState()
+		mood = getMoodEmoji(state.Mood.Primary)
+	} else {
+		mood = "🐦"
+	}
 
 	color.New(color.FgHiBlack).Printf("╭─")
 	color.New(color.FgMagenta).Printf(" %s nero", mood)
@@ -268,12 +385,12 @@ func (cli *Interface) printPrompt() {
 	color.New(color.FgHiYellow).Printf("❯ ")
 }
 
-// Display error messages
+// Print error messages
 func (cli *Interface) printError(message string) {
 	color.New(color.FgRed).Printf("❌ %s\n", message)
 }
 
-// Find resource tags in input
+// Extract resource tags from input
 func (cli *Interface) extractResources(input string) []string {
 	var resources []string
 	words := strings.Fields(input)
@@ -301,11 +418,10 @@ func (cli *Interface) removeResourceTags(input string) string {
 	return strings.Join(cleaned, " ")
 }
 
-// Handle specific resource access
+// Process specific resource access
 func (cli *Interface) processResource(resource string, input string) {
 	color.New(color.FgCyan).Printf("🔍 Accessing %s resource...\n", resource)
 
-	// TODO: Implement actual resource handlers
 	switch resource {
 	case "terminal":
 		cli.handleTerminalResource()
@@ -318,20 +434,19 @@ func (cli *Interface) processResource(resource string, input string) {
 	}
 }
 
-// Process terminal context
+// Handle terminal resource access
 func (cli *Interface) handleTerminalResource() {
 	// Get current working directory
 	cwd, _ := cli.systemProvider.GetWorkingDirectory()
 	color.New(color.FgGreen).Printf("📟 Terminal context captured - CWD: %s\n", cwd)
 }
 
-// Process screen context
+// Handle screen resource access
 func (cli *Interface) handleScreenResource() {
-	// TODO: Implement screen capture when needed
 	color.New(color.FgGreen).Println("🖥️  Screen context captured")
 }
 
-// Process code context
+// Handle code resource access
 func (cli *Interface) handleCodeResource() {
 	// Get git status if in a git repo
 	if output, err := cli.systemProvider.RunCommand("git", "status", "--porcelain"); err == nil {
@@ -345,65 +460,7 @@ func (cli *Interface) handleCodeResource() {
 	}
 }
 
-// Handle system commands within chat
-func (cli *Interface) executeSystemCommand(command string) {
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
-		return
-	}
-
-	cmd := parts[0]
-	args := parts[1:]
-
-	switch cmd {
-	case "open":
-		if len(args) > 0 {
-			if err := cli.systemProvider.OpenApp(args[0]); err != nil {
-				cli.printError(fmt.Sprintf("Failed to open %s: %v", args[0], err))
-			} else {
-				color.New(color.FgGreen).Printf("🚀 Opened %s\n", args[0])
-			}
-		}
-	case "run":
-		if len(args) > 0 {
-			output, err := cli.systemProvider.RunCommand(args[0], args[1:]...)
-			if err != nil {
-				cli.printError(fmt.Sprintf("Command failed: %v", err))
-			} else {
-				color.New(color.FgCyan).Printf("Command output:\n%s\n", output)
-			}
-		}
-	case "cd":
-		if len(args) > 0 {
-			if err := cli.systemProvider.ChangeDirectory(args[0]); err != nil {
-				cli.printError(fmt.Sprintf("Failed to change directory: %v", err))
-			} else {
-				color.New(color.FgGreen).Printf("📁 Changed to %s\n", args[0])
-			}
-		}
-	case "ls", "dir":
-		cwd, _ := cli.systemProvider.GetWorkingDirectory()
-		files, err := cli.systemProvider.ListDirectory(cwd)
-		if err != nil {
-			cli.printError(fmt.Sprintf("Failed to list directory: %v", err))
-		} else {
-			color.New(color.FgCyan).Println("📂 Directory contents:")
-			for _, file := range files {
-				fmt.Printf("  %s\n", file)
-			}
-		}
-	default:
-		// Try to run as system command
-		output, err := cli.systemProvider.RunCommand(cmd, args...)
-		if err != nil {
-			cli.printError(fmt.Sprintf("Unknown command or error: %v", err))
-		} else {
-			color.New(color.FgCyan).Printf("Output:\n%s\n", output)
-		}
-	}
-}
-
-// Return an emoji for the current mood
+// Get mood emoji for current state
 func getMoodEmoji(mood string) string {
 	switch mood {
 	case "happy":
@@ -416,6 +473,10 @@ func getMoodEmoji(mood string) string {
 		return "😌"
 	case "tired":
 		return "😴"
+	case "excited":
+		return "🎉"
+	case "confident":
+		return "😎"
 	default:
 		return "🐦"
 	}
