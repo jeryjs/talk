@@ -1,235 +1,291 @@
 package cli
 
 import (
-	"bufio"
-	"context"
 	"fmt"
-	"os"
+	"io"
+	"regexp"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
-type CursorAnimation struct {
-	frames  []string
-	current int
-	active  bool
-	mutex   sync.Mutex
-	ctx     context.Context
-	cancel  context.CancelFunc
+var (
+	// Color profile for terminal capabilities
+	profile = termenv.ColorProfile()
+
+	// Base styles using lipgloss
+	promptStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#BD93F9")).
+			Bold(true)
+
+	neroStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF79C6")).
+			Bold(true)
+
+	actionStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#6272A4")).
+			Italic(true).
+			Faint(true)
+
+	suggestionStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#50FA7B")).
+			Faint(true)
+
+	commandStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#8BE9FD")).
+			Bold(true)
+
+	extensionStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFB86C")).
+			Bold(true)
+
+	resourceStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#50FA7B")).
+			Bold(true)
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF5555")).
+			Bold(true)
+
+	streamingStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#F1FA8C")).
+			Italic(true)
+)
+
+type REPL struct {
+	suggestions   []string
+	history       []string
+	isStreaming   bool
+	currentPrompt string
+	actionRegex   *regexp.Regexp
 }
 
-func NewCursorAnimation() *CursorAnimation {
-	return &CursorAnimation{
-		frames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+func NewREPL() *REPL {
+	return &REPL{
+		suggestions:   []string{},
+		history:       []string{},
+		currentPrompt: "╭─ 🐦 nero ──────────────────────────────────────────────────",
+		actionRegex:   regexp.MustCompile(`\*([^*]+)\*`),
 	}
 }
 
-func (ca *CursorAnimation) Start(ctx context.Context) {
-	ca.mutex.Lock()
-	defer ca.mutex.Unlock()
+func (repl *REPL) ShowWelcome() {
+	// Create beautiful welcome box
+	welcomeBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#BD93F9")).
+		Padding(1, 2).
+		MarginTop(1).
+		MarginBottom(1).
+		Align(lipgloss.Center)
 
-	if ca.active {
-		return
-	}
+	title := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FF79C6")).
+		Bold(true).
+		Render("🐦 NERO v2.0")
 
-	ca.ctx, ca.cancel = context.WithCancel(ctx)
-	ca.active = true
-	ca.current = 0
+	subtitle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F1FA8C")).
+		Render("Personal AI Agent • Streaming")
 
-	go ca.animate()
-}
+	provider := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#50FA7B")).
+		Render("🦙 Using Ollama (local)")
 
-func (ca *CursorAnimation) Stop() {
-	ca.mutex.Lock()
-	defer ca.mutex.Unlock()
+	content := lipgloss.JoinVertical(lipgloss.Center, title, subtitle)
 
-	if !ca.active {
-		return
-	}
-
-	ca.active = false
-	ca.cancel()
-
-	// Clear spinner
-	fmt.Print("\r \r")
-}
-
-func (ca *CursorAnimation) animate() {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ca.ctx.Done():
-			return
-		case <-ticker.C:
-			ca.mutex.Lock()
-			if ca.active {
-				fmt.Printf("\r%s", ca.frames[ca.current])
-				ca.current = (ca.current + 1) % len(ca.frames)
-			}
-			ca.mutex.Unlock()
-		}
-	}
-}
-
-type StreamRenderer struct {
-	buffer      strings.Builder
-	lineBuffer  strings.Builder
-	animation   *CursorAnimation
-	mutex       sync.Mutex
-	isStreaming bool
-}
-
-func NewStreamRenderer() *StreamRenderer {
-	return &StreamRenderer{
-		animation: NewCursorAnimation(),
-	}
-}
-
-func (sr *StreamRenderer) StartStreaming(ctx context.Context) {
-	sr.mutex.Lock()
-	defer sr.mutex.Unlock()
-
-	sr.isStreaming = true
-	sr.buffer.Reset()
-	sr.lineBuffer.Reset()
-	sr.animation.Start(ctx)
-}
-
-func (sr *StreamRenderer) Write(content string) {
-	sr.mutex.Lock()
-	defer sr.mutex.Unlock()
-
-	if !sr.isStreaming {
-		return
-	}
-
-	// Add to buffers
-	sr.buffer.WriteString(content)
-
-	// Just print the content directly without complex line buffering
-	fmt.Print(content)
-}
-
-func (sr *StreamRenderer) FinishStreaming() {
-	sr.mutex.Lock()
-	defer sr.mutex.Unlock()
-
-	sr.animation.Stop()
-
-	// Ensure we end with a newline
+	fmt.Println(provider)
 	fmt.Println()
+	fmt.Println(welcomeBox.Render(content))
 
-	sr.isStreaming = false
+	// Personality intro with proper styling
+	intro := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FF79C6")).
+		Render("💜 ") +
+		actionStyle.Render("*stretches wings*") +
+		" Well, well... you're back after all this time?\n" +
+		"   I suppose you expect me to be impressed by this \"upgrade\"...\n\n" +
+		"   Now with REAL streaming responses and live thoughts! ✨\n" +
+		"   Type " + commandStyle.Render("/help") + " for commands, or just talk to me naturally.\n" +
+		"   Use " + resourceStyle.Render("#resources") + " to access system capabilities.\n\n" +
+		actionStyle.Render("*settles on virtual perch*") + " Let's see what you've got...\n"
+
+	fmt.Println(intro)
 }
 
-func (sr *StreamRenderer) GetComplete() string {
-	sr.mutex.Lock()
-	defer sr.mutex.Unlock()
-	return sr.buffer.String()
-}
+func (repl *REPL) ReadInput() (string, error) {
+	// Show the beautiful prompt
+	fmt.Print(promptStyle.Render(repl.currentPrompt) + "\n")
+	fmt.Print(promptStyle.Render("╰─ ❯ "))
 
-type AdvancedREPL struct {
-	renderer       *StreamRenderer
-	highlighter    *SyntaxHighlighter
-	completer      *AutoCompleter
-	history        []string
-	historyPos     int
-	prompt         string
-	multiline      bool
-	reader         *bufio.Reader
-	errorAnimation *CursorAnimation
-}
-
-func NewAdvancedREPL() *AdvancedREPL {
-	return &AdvancedREPL{
-		renderer:       NewStreamRenderer(),
-		highlighter:    NewSyntaxHighlighter(),
-		completer:      NewAutoCompleter(),
-		history:        make([]string, 0),
-		historyPos:     -1,
-		prompt:         "nero> ",
-		reader:         bufio.NewReader(os.Stdin),
-		errorAnimation: NewCursorAnimation(),
-	}
-}
-
-func (repl *AdvancedREPL) SetPrompt(prompt string) {
-	repl.prompt = prompt
-}
-
-func (repl *AdvancedREPL) ReadInput() (string, error) {
-	// Beautiful fancy prompt
-	fmt.Printf("╭─ 🐦 nero ──────────────────────────────────────────────────\n")
-	fmt.Printf("╰─ ❯ ")
-
-	// Read a line of input (this properly blocks)
-	line, err := repl.reader.ReadString('\n')
+	// Use termenv for proper input reading with hotkey support
+	input, err := repl.readRawInput()
 	if err != nil {
 		return "", err
 	}
 
-	input := strings.TrimSpace(line)
-
-	// Show live suggestions while typing
-	if input != "" {
-		suggestions := repl.completer.GetSuggestions(input, len(input))
+	// Show suggestions for commands
+	if strings.HasPrefix(input, "/") || strings.HasPrefix(input, "@") || strings.HasPrefix(input, "#") {
+		suggestions := repl.getSuggestions(input)
 		if len(suggestions) > 0 {
-			// Show suggestions below the input
-			fmt.Printf("%s   └─ Suggestions: %s%s\n", Gray, strings.Join(suggestions, ", "), Reset)
+			suggestionText := suggestionStyle.Render("   └─ Suggestions: " + strings.Join(suggestions, ", "))
+			fmt.Println(suggestionText)
 		}
 	}
 
-	// Add to history and completer
+	// Add to history
 	if input != "" {
 		repl.history = append(repl.history, input)
-		repl.historyPos = len(repl.history)
-		repl.completer.AddToHistory(input)
 	}
 
 	return input, nil
 }
 
-func (repl *AdvancedREPL) StreamResponse(stream <-chan string) {
-	// Show streaming prompt
-	fmt.Printf("╰─ 🐦 nero (streaming)\n   ")
+func (repl *REPL) readRawInput() (string, error) {
+	var input strings.Builder
 
-	var fullResponse strings.Builder
+	for {
+		// Use simple stdin reading for now - keyboard package has issues on Windows
+		var line string
+		_, err := fmt.Scanln(&line)
+		if err != nil {
+			if err == io.EOF {
+				return "", io.EOF
+			}
+			// Handle empty input
+			if err.Error() == "unexpected newline" {
+				return "", nil
+			}
+			return "", err
+		}
 
-	for content := range stream {
-		fmt.Print(content)
-		fullResponse.WriteString(content)
+		// Handle special cases
+		if line == "\\quit" || line == "\\exit" {
+			return "", io.EOF
+		}
+
+		// Handle multiline with backslash
+		if strings.HasSuffix(line, "\\") {
+			input.WriteString(strings.TrimSuffix(line, "\\"))
+			input.WriteString("\n")
+			fmt.Print(promptStyle.Render("... "))
+			continue
+		}
+
+		input.WriteString(line)
+		return input.String(), nil
 	}
-
-	// End with newline and close the response
-	fmt.Println()
 }
 
-func (repl *AdvancedREPL) PrintMessage(message string) {
+func (repl *REPL) StreamResponse(stream <-chan string) {
+	// Update prompt to streaming state
+	repl.isStreaming = true
+
+	// Move cursor up and update prompt
+	fmt.Print("\033[A\r")
+	streamingPrompt := promptStyle.Render("╭─ 🐦 nero ") +
+		streamingStyle.Render("(streaming)") +
+		promptStyle.Render(" ──────────────────────────────────────")
+	fmt.Println(streamingPrompt)
+
+	// Show spinner briefly
+	spinnerChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	spinnerIdx := 0
+
+	// Start response with indentation
+	fmt.Print("   ")
+
+	firstContent := true
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case content, ok := <-stream:
+			if !ok {
+				// Stream closed
+				fmt.Println()
+				repl.isStreaming = false
+				return
+			}
+
+			if firstContent {
+				fmt.Print("\r   ") // Clear spinner
+				firstContent = false
+			}
+
+			// Style the content with beautiful colors
+			styledContent := repl.styleContent(content)
+			fmt.Print(styledContent)
+
+		case <-ticker.C:
+			if firstContent {
+				// Show spinner while waiting
+				fmt.Printf("\r   %s", spinnerChars[spinnerIdx])
+				spinnerIdx = (spinnerIdx + 1) % len(spinnerChars)
+			}
+		}
+	}
+}
+
+func (repl *REPL) styleContent(content string) string {
+	// Style actions like *stretches wings* with beautiful fading
+	return repl.actionRegex.ReplaceAllStringFunc(content, func(match string) string {
+		action := strings.Trim(match, "*")
+		return actionStyle.Render("*" + action + "*")
+	})
+}
+
+func (repl *REPL) getSuggestions(input string) []string {
+	var suggestions []string
+
+	if strings.HasPrefix(input, "/") {
+		commands := []string{"/help", "/clear", "/status", "/quit", "/exit"}
+		for _, cmd := range commands {
+			if strings.HasPrefix(cmd, input) {
+				suggestions = append(suggestions, commandStyle.Render(cmd))
+			}
+		}
+	} else if strings.HasPrefix(input, "@") {
+		extensions := []string{"@nero", "@system", "@dev", "@code"}
+		for _, ext := range extensions {
+			if strings.HasPrefix(ext, input) {
+				suggestions = append(suggestions, extensionStyle.Render(ext))
+			}
+		}
+	} else if strings.HasPrefix(input, "#") {
+		resources := []string{"#terminal", "#screen", "#code", "#memory", "#config"}
+		for _, res := range resources {
+			if strings.HasPrefix(res, input) {
+				suggestions = append(suggestions, resourceStyle.Render(res))
+			}
+		}
+	}
+
+	return suggestions
+}
+
+func (repl *REPL) PrintMessage(message string) {
 	fmt.Println(message)
 }
 
-func (repl *AdvancedREPL) PrintError(err error) {
-	fmt.Printf("Error: %v\n", err)
+func (repl *REPL) PrintError(err error) {
+	errorText := errorStyle.Render("Error: " + err.Error())
+	fmt.Println(errorText)
 }
 
-func (repl *AdvancedREPL) Clear() {
-	fmt.Print("\033[2J\033[H")
-}
-
-func (repl *AdvancedREPL) ShowTransientError(err error) {
-	// Show error with animation, then clear after 3 seconds
-	ctx := context.Background()
-	repl.errorAnimation.Start(ctx)
-
-	fmt.Printf("\r%sError: %v%s", Red, err, Reset)
+func (repl *REPL) ShowTransientError(err error) {
+	errorText := errorStyle.Render("💭 " + err.Error())
+	fmt.Print("\r" + errorText)
 
 	go func() {
 		time.Sleep(3 * time.Second)
-		repl.errorAnimation.Stop()
-		// Clear the line
-		fmt.Print("\r" + strings.Repeat(" ", 50) + "\r")
+		fmt.Print("\r" + strings.Repeat(" ", len(errorText)) + "\r")
 	}()
+}
+
+func (repl *REPL) Clear() {
+	fmt.Print("\033[2J\033[H")
 }

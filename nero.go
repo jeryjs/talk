@@ -7,9 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
 	"nero/behavioral"
 	"nero/capabilities"
@@ -58,31 +56,32 @@ func main() {
 	}
 	defer engine.Stop()
 
-	// Initialize CLI
-	repl := cli.NewAdvancedREPL()
-	visualizer := cli.NewVisualizer()
+	// Initialize CLI with modern styling
+	repl := cli.NewREPL()
 
 	// Show welcome
-	visualizer.ShowWelcome()
+	repl.ShowWelcome()
 
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
-		fmt.Printf("\n💜 *ruffles feathers* Leaving already?\n")
-		fmt.Printf("   Well... it's not like I'll miss you or anything!\n\n")
-		fmt.Printf("   *quietly* ...come back soon, okay?\n\n")
-		fmt.Printf("✨ Nero signing off...\n")
-		cancel()
+
+		// Handle Ctrl+C properly - only interrupt, don't exit
+		fmt.Printf("\n💭 Use Ctrl+D or /quit to exit. Ctrl+C interrupts responses.\n")
+		// Don't cancel here - let it continue
 	}()
 
 	// Main REPL loop - properly blocks on input
 	for {
 		input, err := repl.ReadInput()
 		if err != nil {
-			// Handle EOF (Ctrl+C) gracefully
+			// Handle EOF (Ctrl+D) gracefully
 			if err == io.EOF {
-				fmt.Println("\nShutting down Nero...")
+				fmt.Printf("\n💜 *ruffles feathers* Leaving already?\n")
+				fmt.Printf("   Well... it's not like I'll miss you or anything!\n\n")
+				fmt.Printf("   *quietly* ...come back soon, okay?\n\n")
+				fmt.Printf("✨ Nero signing off...\n")
 				return
 			}
 			repl.ShowTransientError(err)
@@ -101,7 +100,7 @@ func main() {
 		}
 
 		// Handle special commands
-		if handleSpecialCommand(input, repl, visualizer, neroExt) {
+		if handleSpecialCommand(input, repl, neroExt) {
 			continue
 		}
 
@@ -112,7 +111,7 @@ func main() {
 	}
 }
 
-func handleSpecialCommand(input string, repl *cli.AdvancedREPL, visualizer *cli.Visualizer, neroExt *extensions.NeroExtension) bool {
+func handleSpecialCommand(input string, repl *cli.REPL, neroExt *extensions.NeroExtension) bool {
 	switch input {
 	case "/help":
 		repl.PrintMessage(`Nero Commands:
@@ -127,12 +126,12 @@ func handleSpecialCommand(input string, repl *cli.AdvancedREPL, visualizer *cli.
 		return true
 
 	case "/clear":
-		visualizer.Clear()
+		repl.Clear()
 		return true
 
 	case "/status":
 		config := neroExt.GetConfig()
-		visualizer.RenderNeroStatus(config.Personality, 0, 0)
+		repl.PrintMessage(fmt.Sprintf("Status: %s", config.Personality))
 		return true
 
 	case "/quit", "/exit":
@@ -165,21 +164,9 @@ func handleSpecialCommand(input string, repl *cli.AdvancedREPL, visualizer *cli.
 	return false
 }
 
-func processAIRequest(input string, aiRouter *ai.Router, engine *behavioral.Engine, repl *cli.AdvancedREPL) error {
+func processAIRequest(input string, aiRouter *ai.Router, engine *behavioral.Engine, repl *cli.REPL) error {
 	mainModel := aiRouter.GetMainModel()
 	if mainModel == nil {
-		// Show animated "searching for models" message
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		animation := cli.NewCursorAnimation()
-		animation.Start(ctx)
-		fmt.Printf("\r%sSearching for AI models...%s", cli.Yellow, cli.Reset)
-
-		<-ctx.Done()
-		animation.Stop()
-		fmt.Print("\r" + strings.Repeat(" ", 30) + "\r")
-
 		return fmt.Errorf("no AI models available - try: ollama pull qwen2.5:3b")
 	}
 
@@ -201,13 +188,29 @@ func processAIRequest(input string, aiRouter *ai.Router, engine *behavioral.Engi
 		})
 	}
 
-	// Stream response with visual feedback
+	// Stream response with cancellable context for Ctrl+C interruption
 	stream := make(chan string, 100)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle Ctrl+C during streaming
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT)
+		select {
+		case <-sigChan:
+			cancel() // Cancel the AI request
+			fmt.Printf("\n💭 Response interrupted. Continue chatting...\n")
+		case <-ctx.Done():
+			return
+		}
+	}()
 
 	go func() {
 		if err := mainModel.Chat(ctx, messages, stream); err != nil {
-			repl.ShowTransientError(err)
+			if ctx.Err() != context.Canceled {
+				repl.ShowTransientError(err)
+			}
 		}
 	}()
 

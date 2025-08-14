@@ -20,6 +20,7 @@ const (
 	Gray    Color = "\033[90m"
 	Bold    Color = "\033[1m"
 	Dim     Color = "\033[2m"
+	Italic  Color = "\033[3m"
 )
 
 type Element interface {
