@@ -86,7 +86,7 @@ func NewInterface(runtime interface{}) *Interface {
 
 	cli := &Interface{
 		core:            core,
-		behavior:        behavioral.NewEngine(core),
+		behavior:        behavioral.NewEngine(),
 		systemProvider:  providers.NewSystemProvider(),
 		commands:        make(map[string]Command),
 		completer:       NewCompleter(),

@@ -2,118 +2,118 @@ package kernel
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 )
 
-// Orchestrate the Nero system core
-type Runtime struct {
-	eventLoop    *EventLoop
-	memory       *Memory
-	registry     *Registry
-	capabilities map[string]Capability
-	mu           sync.RWMutex
-}
+type EventType string
 
-// Handle concurrent operations and scheduling
-type EventLoop struct {
-	events   chan Event
-	shutdown chan struct{}
-	ctx      context.Context
-}
+const (
+	EventCapabilityLoad   EventType = "capability.load"
+	EventCapabilityUnload EventType = "capability.unload"
+	EventMessage          EventType = "message"
+	EventConfig           EventType = "config"
+	EventBehavioral       EventType = "behavioral"
+	EventSystem           EventType = "system"
+)
 
-// Represent any system event
 type Event struct {
-	Type      string
-	Data      interface{}
-	Timestamp time.Time
-	Source    string
+	ID        string                 `json:"id"`
+	Type      EventType              `json:"type"`
+	Source    string                 `json:"source"`
+	Target    string                 `json:"target,omitempty"`
+	Data      map[string]interface{} `json:"data"`
+	Timestamp time.Time              `json:"timestamp"`
 }
 
-// Create a new Nero runtime instance
+type EventHandler func(*Event) error
+
+type Runtime struct {
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+	eventChan chan *Event
+	handlers  map[EventType][]EventHandler
+	mutex     sync.RWMutex
+	context   *ContextManager
+}
+
 func NewRuntime() *Runtime {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Runtime{
-		eventLoop:    NewEventLoop(),
-		memory:       NewMemory(),
-		registry:     NewRegistry(),
-		capabilities: make(map[string]Capability),
+		ctx:       ctx,
+		cancel:    cancel,
+		eventChan: make(chan *Event, 1000),
+		handlers:  make(map[EventType][]EventHandler),
+		context:   NewContextManager(10000),
 	}
 }
 
-// Initialize the runtime and load core capabilities
-func (r *Runtime) Boot(ctx context.Context) error {
-	r.eventLoop.Start(ctx)
-
-	// TODO: Load core capabilities
-	// TODO: Initialize behavioral engine
-	// TODO: Setup IPC channels
-
+func (r *Runtime) Start() error {
+	r.wg.Add(1)
+	go r.eventLoop()
 	return nil
 }
 
-// Add a new capability to the runtime
-func (r *Runtime) RegisterCapability(name string, cap Capability) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.capabilities[name] = cap
-	return cap.Initialize(r)
+func (r *Runtime) Stop() {
+	r.cancel()
+	close(r.eventChan)
+	r.wg.Wait()
+	r.context.Close()
 }
 
-// Retrieve a registered capability
-func (r *Runtime) GetCapability(name string) (Capability, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	cap, exists := r.capabilities[name]
-	return cap, exists
-}
-
-// Dispatch an event through the system
-func (r *Runtime) SendEvent(event Event) {
-	r.eventLoop.Send(event)
-}
-
-// Create a new event processing loop
-func NewEventLoop() *EventLoop {
-	return &EventLoop{
-		events:   make(chan Event, 1000), // Buffered for high throughput
-		shutdown: make(chan struct{}),
+func (r *Runtime) Emit(event *Event) {
+	event.Timestamp = time.Now()
+	if event.ID == "" {
+		event.ID = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-}
 
-// Begin the event processing loop
-func (e *EventLoop) Start(ctx context.Context) {
-	e.ctx = ctx
-	go e.process()
-}
-
-// Queue an event for processing
-func (e *EventLoop) Send(event Event) {
 	select {
-	case e.events <- event:
-	case <-e.shutdown:
-	default:
-		// Drop event if buffer is full (fail-fast)
+	case r.eventChan <- event:
+	case <-r.ctx.Done():
 	}
 }
 
-// Handle incoming events
-func (e *EventLoop) process() {
+func (r *Runtime) Subscribe(eventType EventType, handler EventHandler) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.handlers[eventType] = append(r.handlers[eventType], handler)
+}
+
+func (r *Runtime) Context() *ContextManager {
+	return r.context
+}
+
+func (r *Runtime) eventLoop() {
+	defer r.wg.Done()
+
 	for {
 		select {
-		case event := <-e.events:
-			e.handleEvent(event)
-		case <-e.ctx.Done():
-			close(e.shutdown)
+		case <-r.ctx.Done():
 			return
+		case event := <-r.eventChan:
+			if event == nil {
+				return
+			}
+			r.handleEvent(event)
 		}
 	}
 }
 
-// Process individual events
-func (e *EventLoop) handleEvent(event Event) {
-	// TODO: Route events to appropriate handlers
-	// TODO: Implement event middleware chain
-	// TODO: Handle real-time event processing
+func (r *Runtime) handleEvent(event *Event) {
+	r.mutex.RLock()
+	handlers := r.handlers[event.Type]
+	r.mutex.RUnlock()
+
+	for _, handler := range handlers {
+		go func(h EventHandler) {
+			defer func() {
+				if r := recover(); r != nil {
+					// Log panic but don't crash
+				}
+			}()
+			h(event)
+		}(handler)
+	}
 }

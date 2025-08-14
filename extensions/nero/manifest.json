@@ -1,0 +1,13 @@
+{
+  "name": "nero",
+  "version": "1.0.0",
+  "description": "Nero self-configuration and essential commands extension",
+  "author": "Nero Project",
+  "dependencies": [],
+  "capabilities": ["config", "commands", "resources"],
+  "metadata": {
+    "type": "core",
+    "essential": "true",
+    "auto_load": "true"
+  }
+}

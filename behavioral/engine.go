@@ -53,31 +53,8 @@ type Response struct {
 	Metadata   map[string]interface{}
 }
 
-// Create a new AI-driven behavioral engine with core integration
-func NewEngine(core interface{}) *Engine {
-	// For now, we'll use a simple provider approach
-	// TODO: Integrate with the new kernel core properly
-
-	memoryProvider := providers.NewMemoryProvider()
-
-	// Use first available AI provider
-	var aiProvider providers.AIProvider
-	ollama := providers.NewOllamaProvider("llama3.2")
-	if ollama.IsAvailable() {
-		aiProvider = ollama
-	} else {
-		openai := providers.NewOpenAIProvider("gpt-4o-mini")
-		if openai.IsAvailable() {
-			aiProvider = openai
-		}
-	}
-
-	if aiProvider == nil {
-		return nil
-	}
-
-	kaomojiProvider := providers.NewKaomojiProvider(aiProvider)
-
+// Create a new AI-driven behavioral engine
+func NewEngine() *Engine {
 	personality := &PersonalityCore{
 		SystemPrompt: buildNeroPersonality(),
 		Traits: map[string]string{
@@ -107,11 +84,31 @@ func NewEngine(core interface{}) *Engine {
 			LastUpdated:  time.Now(),
 			RecentEvents: make([]string, 0),
 		},
-		aiProvider:      aiProvider,
-		memoryProvider:  memoryProvider,
-		kaomojiProvider: kaomojiProvider,
-		personality:     personality,
+		personality: personality,
 	}
+}
+
+// Start the behavioral engine
+func (e *Engine) Start(ctx context.Context) error {
+	// Initialize any background processes
+	return nil
+}
+
+// Stop the behavioral engine
+func (e *Engine) Stop() {
+	// Cleanup any resources
+}
+
+// Get current mood for AI context
+func (e *Engine) GetCurrentMood() string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.currentState.Mood.Primary
+}
+
+// Get personality prompt for AI
+func (e *Engine) GetPersonalityPrompt() string {
+	return e.personality.SystemPrompt
 }
 
 // Handle user input and generate AI response
