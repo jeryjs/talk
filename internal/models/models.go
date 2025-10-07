@@ -111,8 +111,8 @@ func Register(provider Provider) {
 	registry.providers[provider.Name()] = provider
 }
 
-// Get gets a provider by name
-func Get(name string) (Provider, error) {
+// GetProvider gets a provider by name
+func GetProvider(name string) (Provider, error) {
 	provider, ok := registry.providers[name]
 	if !ok {
 		return nil, fmt.Errorf("provider not found: %s", name)

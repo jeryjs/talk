@@ -16,6 +16,7 @@ type Agent struct {
 	provider      models.Provider
 	model         models.Model
 	conversation  []models.Message
+	systemPrompt  string
 	maxIterations int
 }
 
@@ -27,12 +28,12 @@ func New() (*Agent, error) {
 	// Supports: "provider/model", "shortcut/model", or just "model"
 	// Shortcuts: g/ = gemini, op/ = openai, op/ = ollama, c/ = claude, gq/ = groq
 	providerName, modelID := parseModelString(cfg.Model)
-
-	provider, err := models.Get(providerName)
+	fmt.Println(providerName, modelID)
+	provider, err := models.GetProvider(providerName)
 	if err != nil {
 		// Always fallback to Ollama (local, no API key needed)
 		fmt.Printf("⚠️  Provider '%s' not available, falling back to Ollama (local)\n", providerName)
-		provider, err = models.Get("ollama")
+		provider, err = models.GetProvider("ollama")
 		if err != nil {
 			return nil, fmt.Errorf("no providers available (even Ollama failed): %w", err)
 		}
@@ -174,6 +175,17 @@ func (a *Agent) Chat(ctx context.Context, message string) (string, error) {
 	return "", fmt.Errorf("max iterations reached")
 }
 
+// ChatStream sends a message and streams the response
+func (a *Agent) ChatStream(ctx context.Context, input string, f func(chunk string)) error {
+	streamCh, err := a.Stream(ctx, input)
+	if err == nil {
+		for chunk := range streamCh {
+			f(chunk)
+		}
+	}
+	return err
+}
+
 // Stream sends a message and streams the response
 func (a *Agent) Stream(ctx context.Context, message string) (<-chan string, error) {
 	// Add user message
@@ -199,7 +211,7 @@ func (a *Agent) Stream(ctx context.Context, message string) (<-chan string, erro
 	}
 
 	opts := &models.Options{
-		Model:       cfg.Model,
+		Model:       a.model.ID,
 		MaxTokens:   cfg.MaxTokens,
 		Temperature: cfg.Temperature,
 		Tools:       toolDefs,
@@ -284,13 +296,21 @@ func (a *Agent) GetProvider() models.Provider {
 	return a.provider
 }
 
-// SwitchModel changes the model while preserving conversation
-func (a *Agent) SwitchModel(providerName, modelID string) error {
-	provider, err := models.Get(providerName)
+// GetModelID returns the current model ID
+func (a *Agent) GetModelID() string {
+	return a.model.ID
+}
+
+// SwitchModel switches to a new model WITHOUT clearing conversation
+func (a *Agent) SwitchModel(modelString string) error {
+	providerName, modelID := parseModelString(modelString)
+
+	provider, err := models.GetProvider(providerName)
 	if err != nil {
-		return fmt.Errorf("failed to get provider: %w", err)
+		return fmt.Errorf("provider not available: %w", err)
 	}
 
+	// Update provider and model WITHOUT clearing conversation
 	a.provider = provider
 	a.model = models.Model{
 		ID:       modelID,
