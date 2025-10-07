@@ -274,6 +274,32 @@ func (a *Agent) Reset() {
 	a.conversation = make([]models.Message, 0)
 }
 
+// GetModel returns the current model
+func (a *Agent) GetModel() models.Model {
+	return a.model
+}
+
+// GetProvider returns the current provider
+func (a *Agent) GetProvider() models.Provider {
+	return a.provider
+}
+
+// SwitchModel changes the model while preserving conversation
+func (a *Agent) SwitchModel(providerName, modelID string) error {
+	provider, err := models.Get(providerName)
+	if err != nil {
+		return fmt.Errorf("failed to get provider: %w", err)
+	}
+
+	a.provider = provider
+	a.model = models.Model{
+		ID:       modelID,
+		Provider: providerName,
+	}
+
+	return nil
+}
+
 // GetConversation returns the current conversation
 func (a *Agent) GetConversation() []models.Message {
 	return a.conversation
