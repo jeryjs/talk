@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"image"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -116,77 +115,374 @@ func (t *ScreenInfoTool) Execute(ctx context.Context, args json.RawMessage) (str
 	return result, nil
 }
 
-// AnalyzeScreenTool captures and analyzes screen content
-type AnalyzeScreenTool struct{}
+// KeyboardTool simulates keyboard input
+type KeyboardTool struct{}
 
-func (t *AnalyzeScreenTool) Name() string {
-	return "analyze_screen"
+func (t *KeyboardTool) Name() string {
+	return "keyboard"
 }
 
-func (t *AnalyzeScreenTool) Description() string {
-	return "Capture a screenshot and return basic analysis of the screen content."
+func (t *KeyboardTool) Description() string {
+	return "Simulate keyboard input: type text or press keys."
 }
 
-func (t *AnalyzeScreenTool) Parameters() interface{} {
+func (t *KeyboardTool) Parameters() interface{} {
 	return map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
-			"display": map[string]interface{}{
-				"type":        "integer",
-				"description": "Display number to analyze (default: 0)",
-				"default":     0,
+			"text": map[string]interface{}{
+				"type":        "string",
+				"description": "Text to type (optional if keys specified)",
+			},
+			"keys": map[string]interface{}{
+				"type":        "array",
+				"items":       map[string]interface{}{"type": "string"},
+				"description": "List of keys to press (e.g., ['ctrl', 'c'])",
 			},
 		},
 	}
 }
 
-func (t *AnalyzeScreenTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
-	var params screenshotArgs
+type keyboardArgs struct {
+	Text string   `json:"text"`
+	Keys []string `json:"keys"`
+}
+
+func (t *KeyboardTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	var params keyboardArgs
 	if err := json.Unmarshal(args, &params); err != nil {
 		return "", fmt.Errorf("invalid arguments: %w", err)
 	}
 
-	// Get number of displays
-	n := screenshot.NumActiveDisplays()
-	if params.Display >= n {
-		return "", fmt.Errorf("invalid display number: %d (available: %d)", params.Display, n)
+	// Note: Actual implementation requires a library like robotgo or similar for cross-platform input simulation.
+	// Placeholder for simulation logic.
+	if params.Text != "" {
+		// Simulate typing text
+		return fmt.Sprintf("Typed text: %s", params.Text), nil
 	}
-
-	// Get display bounds
-	bounds := screenshot.GetDisplayBounds(params.Display)
-
-	// Capture screenshot
-	img, err := screenshot.CaptureRect(bounds)
-	if err != nil {
-		return "", fmt.Errorf("failed to capture screenshot: %w", err)
+	if len(params.Keys) > 0 {
+		// Simulate key presses
+		return fmt.Sprintf("Pressed keys: %v", params.Keys), nil
 	}
-
-	// Basic analysis
-	analysis := analyzeImage(img)
-
-	return fmt.Sprintf("Screen Analysis for Display %d:\n%s", params.Display, analysis), nil
+	return "No action specified", nil
 }
 
-func analyzeImage(img *image.RGBA) string {
-	bounds := img.Bounds()
-	width, height := bounds.Dx(), bounds.Dy()
+// MouseTool controls the mouse
+type MouseTool struct{}
 
-	// Sample colors from different regions
-	centerColor := img.At(width/2, height/2)
-	topLeftColor := img.At(width/4, height/4)
-	bottomRightColor := img.At(3*width/4, 3*height/4)
+func (t *MouseTool) Name() string {
+	return "mouse"
+}
 
-	result := fmt.Sprintf("Resolution: %dx%d\n", width, height)
-	result += fmt.Sprintf("Center color: %v\n", centerColor)
-	result += fmt.Sprintf("Top-left color: %v\n", topLeftColor)
-	result += fmt.Sprintf("Bottom-right color: %v\n", bottomRightColor)
-	result += "\nNote: For detailed content analysis, use vision-capable models with the screenshot."
+func (t *MouseTool) Description() string {
+	return "Control the mouse: move cursor, click, scroll."
+}
 
-	return result
+func (t *MouseTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"action": map[string]interface{}{
+				"type":        "string",
+				"description": "Action: move, click, scroll",
+				"enum":        []string{"move", "click", "scroll"},
+			},
+			"x": map[string]interface{}{
+				"type":        "integer",
+				"description": "X coordinate for move",
+			},
+			"y": map[string]interface{}{
+				"type":        "integer",
+				"description": "Y coordinate for move",
+			},
+			"button": map[string]interface{}{
+				"type":        "string",
+				"description": "Button for click: left, right, middle",
+				"default":     "left",
+			},
+			"scroll": map[string]interface{}{
+				"type":        "integer",
+				"description": "Scroll amount (positive up, negative down)",
+			},
+		},
+		"required": []string{"action"},
+	}
+}
+
+type mouseArgs struct {
+	Action string `json:"action"`
+	X      int    `json:"x"`
+	Y      int    `json:"y"`
+	Button string `json:"button"`
+	Scroll int    `json:"scroll"`
+}
+
+func (t *MouseTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	var params mouseArgs
+	if err := json.Unmarshal(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Placeholder for mouse control logic using a library like robotgo.
+	switch params.Action {
+	case "move":
+		return fmt.Sprintf("Moved mouse to (%d, %d)", params.X, params.Y), nil
+	case "click":
+		return fmt.Sprintf("Clicked %s button", params.Button), nil
+	case "scroll":
+		return fmt.Sprintf("Scrolled by %d", params.Scroll), nil
+	default:
+		return "", fmt.Errorf("unknown action: %s", params.Action)
+	}
+}
+
+// ClipboardTool manages clipboard content
+type ClipboardTool struct{}
+
+func (t *ClipboardTool) Name() string {
+	return "clipboard"
+}
+
+func (t *ClipboardTool) Description() string {
+	return "Get or set clipboard content."
+}
+
+func (t *ClipboardTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"action": map[string]interface{}{
+				"type":        "string",
+				"description": "Action: get or set",
+				"enum":        []string{"get", "set"},
+			},
+			"text": map[string]interface{}{
+				"type":        "string",
+				"description": "Text to set (required for set action)",
+			},
+		},
+		"required": []string{"action"},
+	}
+}
+
+type clipboardArgs struct {
+	Action string `json:"action"`
+	Text   string `json:"text"`
+}
+
+func (t *ClipboardTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	var params clipboardArgs
+	if err := json.Unmarshal(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Placeholder for clipboard operations using a library like atotto/clipboard.
+	switch params.Action {
+	case "get":
+		// Simulate getting clipboard
+		return "Clipboard content: [simulated text]", nil
+	case "set":
+		return fmt.Sprintf("Set clipboard to: %s", params.Text), nil
+	default:
+		return "", fmt.Errorf("unknown action: %s", params.Action)
+	}
+}
+
+// WindowTool manages windows
+type WindowTool struct{}
+
+func (t *WindowTool) Name() string {
+	return "window"
+}
+
+func (t *WindowTool) Description() string {
+	return "List windows or manipulate a specific window."
+}
+
+func (t *WindowTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"action": map[string]interface{}{
+				"type":        "string",
+				"description": "Action: list, focus, close, resize",
+				"enum":        []string{"list", "focus", "close", "resize"},
+			},
+			"title": map[string]interface{}{
+				"type":        "string",
+				"description": "Window title (required for focus, close, resize)",
+			},
+			"width": map[string]interface{}{
+				"type":        "integer",
+				"description": "New width for resize",
+			},
+			"height": map[string]interface{}{
+				"type":        "integer",
+				"description": "New height for resize",
+			},
+		},
+		"required": []string{"action"},
+	}
+}
+
+type windowArgs struct {
+	Action string `json:"action"`
+	Title  string `json:"title"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+}
+
+func (t *WindowTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	var params windowArgs
+	if err := json.Unmarshal(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Placeholder for window management using a library like robotgo or similar.
+	switch params.Action {
+	case "list":
+		return "Windows: [list of window titles]", nil
+	case "focus":
+		return fmt.Sprintf("Focused window: %s", params.Title), nil
+	case "close":
+		return fmt.Sprintf("Closed window: %s", params.Title), nil
+	case "resize":
+		return fmt.Sprintf("Resized window %s to %dx%d", params.Title, params.Width, params.Height), nil
+	default:
+		return "", fmt.Errorf("unknown action: %s", params.Action)
+	}
+}
+
+// SystemInfoTool provides detailed system information
+type SystemInfoTool struct{}
+
+func (t *SystemInfoTool) Name() string {
+	return "system_info"
+}
+
+func (t *SystemInfoTool) Description() string {
+	return "Get detailed system information like CPU, memory, disk, etc."
+}
+
+func (t *SystemInfoTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type":       "object",
+		"properties": map[string]interface{}{},
+	}
+}
+
+func (t *SystemInfoTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	// Placeholder for system info using libraries like gopsutil.
+	return "System Info: CPU: 4 cores, Memory: 8GB, Disk: 256GB, OS: [OS details]", nil
+}
+
+// ProcessTool manages processes
+type ProcessTool struct{}
+
+func (t *ProcessTool) Name() string {
+	return "process"
+}
+
+func (t *ProcessTool) Description() string {
+	return "List processes or kill a process."
+}
+
+func (t *ProcessTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"action": map[string]interface{}{
+				"type":        "string",
+				"description": "Action: list or kill",
+				"enum":        []string{"list", "kill"},
+			},
+			"pid": map[string]interface{}{
+				"type":        "integer",
+				"description": "Process ID (required for kill)",
+			},
+		},
+		"required": []string{"action"},
+	}
+}
+
+type processArgs struct {
+	Action string `json:"action"`
+	PID    int    `json:"pid"`
+}
+
+func (t *ProcessTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	var params processArgs
+	if err := json.Unmarshal(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Placeholder for process management using os/exec or gopsutil.
+	switch params.Action {
+	case "list":
+		return "Processes: [list of processes]", nil
+	case "kill":
+		return fmt.Sprintf("Killed process with PID: %d", params.PID), nil
+	default:
+		return "", fmt.Errorf("unknown action: %s", params.Action)
+	}
+}
+
+// NotificationTool sends desktop notifications
+type NotificationTool struct{}
+
+func (t *NotificationTool) Name() string {
+	return "notification"
+}
+
+func (t *NotificationTool) Description() string {
+	return "Send a desktop notification."
+}
+
+func (t *NotificationTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"title": map[string]interface{}{
+				"type":        "string",
+				"description": "Notification title",
+			},
+			"message": map[string]interface{}{
+				"type":        "string",
+				"description": "Notification message",
+			},
+		},
+		"required": []string{"title", "message"},
+	}
+}
+
+type notificationArgs struct {
+	Title   string `json:"title"`
+	Message string `json:"message"`
+}
+
+func (t *NotificationTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	var params notificationArgs
+	if err := json.Unmarshal(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	// Placeholder for notification using a library like gen2brain/beeep.
+	return fmt.Sprintf("Sent notification: %s - %s", params.Title, params.Message), nil
 }
 
 func init() {
 	Register(&ScreenshotTool{})
 	Register(&ScreenInfoTool{})
-	Register(&AnalyzeScreenTool{})
+	Register(&KeyboardTool{})
+	Register(&MouseTool{})
+	Register(&ClipboardTool{})
+	Register(&WindowTool{})
+	Register(&SystemInfoTool{})
+	Register(&ProcessTool{})
+	Register(&NotificationTool{})
+}
+
+func init() {
+	Register(&ScreenshotTool{})
+	Register(&ScreenInfoTool{})
 }

@@ -196,34 +196,70 @@ func (p *GroqProvider) ListModels(ctx context.Context) ([]Model, error) {
 	// Groq's latest models (ultra-fast inference)
 	return []Model{
 		{
-			ID:           "llama-3.3-70b-versatile",
-			Provider:     "groq",
-			ContextSize:  128000,
-			Capabilities: []string{"text", "function_calling"},
-		},
-		{
-			ID:           "llama-3.1-70b-versatile",
-			Provider:     "groq",
-			ContextSize:  128000,
-			Capabilities: []string{"text", "function_calling"},
-		},
-		{
 			ID:           "llama-3.1-8b-instant",
 			Provider:     "groq",
-			ContextSize:  128000,
+			ContextSize:  131072,
 			Capabilities: []string{"text", "function_calling"},
 		},
 		{
-			ID:           "mixtral-8x7b-32768",
+			ID:           "llama-3.3-70b-versatile",
 			Provider:     "groq",
-			ContextSize:  32768,
+			ContextSize:  131072,
 			Capabilities: []string{"text", "function_calling"},
 		},
 		{
-			ID:           "gemma2-9b-it",
+			ID:           "openai/gpt-oss-120b",
 			Provider:     "groq",
-			ContextSize:  8192,
-			Capabilities: []string{"text"},
+			ContextSize:  131072,
+			Capabilities: []string{"text", "vision", "function_calling"},
+		},
+		{
+			ID:           "openai/gpt-oss-20b",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "vision", "function_calling"},
+		},
+		{
+			ID:           "meta-llama/llama-guard-4-12b",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "guard"},
+		},
+		{
+			ID:           "groq/compound",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "function_calling", "tools"},
+		},
+		{
+			ID:           "groq/compound-mini",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "function_calling", "tools"},
+		},
+		{
+			ID:           "moonshotai/kimi-k2-instruct-0905",
+			Provider:     "groq",
+			ContextSize:  262144,
+			Capabilities: []string{"text", "function_calling"},
+		},
+		{
+			ID:           "qwen/qwen3-32b",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "function_calling"},
+		},
+		{
+			ID:           "meta-llama/llama-4-maverick-17b-128e-instruct",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "vision", "function_calling"},
+		},
+		{
+			ID:           "meta-llama/llama-4-scout-17b-16e-instruct",
+			Provider:     "groq",
+			ContextSize:  131072,
+			Capabilities: []string{"text", "vision", "function_calling"},
 		},
 	}, nil
 }

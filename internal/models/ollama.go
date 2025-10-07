@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
+	"strings"
 )
 
 // OllamaProvider implements Provider for Ollama (local models)
@@ -51,6 +53,21 @@ type ollamaChatResponse struct {
 	CreatedAt string        `json:"created_at"`
 	Message   ollamaMessage `json:"message"`
 	Done      bool          `json:"done"`
+}
+
+func _startOllamaAPI() error {
+	// Attempt to start the Ollama API server (Windows only)
+	cmd := "ollama"
+	args := []string{"serve"}
+
+	proc := exec.Command(cmd, args...)
+	proc.Stdout = nil
+	proc.Stderr = nil
+
+	if err := proc.Start(); err != nil {
+		return fmt.Errorf("failed to start Ollama API: %w", err)
+	}
+	return nil
 }
 
 // Chat sends a message and gets a response
@@ -152,6 +169,14 @@ func (p *OllamaProvider) Stream(ctx context.Context, messages []Message, opts *O
 
 	resp, err := p.client.Do(req)
 	if err != nil {
+		if strings.Contains(err.Error(), "No connection could be made because the target machine actively refused it") {
+			fmt.Printf("ollama server not running at %s. Attempting to start the Ollama API.\n", p.baseURL)
+			// Start the Ollama API
+			startErr := _startOllamaAPI()
+			if startErr != nil {
+				return nil, fmt.Errorf("failed to start Ollama API: %w", startErr)
+			}
+		}
 		return nil, fmt.Errorf("ollama request failed: %w", err)
 	}
 

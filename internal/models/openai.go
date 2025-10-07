@@ -207,28 +207,34 @@ func (p *OpenAIProvider) ListModels(ctx context.Context) ([]Model, error) {
 	// Latest OpenAI models as of 2025
 	return []Model{
 		{
-			ID:           "gpt-4.5",
+			ID:           "gpt-5",
 			Provider:     "openai",
-			ContextSize:  200000,
+			ContextSize:  400000,
+			Capabilities: []string{"text", "vision", "audio", "function_calling", "reasoning"},
+		},
+		{
+			ID:           "gpt-5-mini",
+			Provider:     "openai",
+			ContextSize:  400000,
 			Capabilities: []string{"text", "vision", "function_calling", "reasoning"},
+		},
+		{
+			ID:           "gpt-5-nano",
+			Provider:     "openai",
+			ContextSize:  400000,
+			Capabilities: []string{"text", "vision", "function_calling", "reasoning"},
+		},
+		{
+			ID:           "gpt-4.1",
+			Provider:     "openai",
+			ContextSize:  1047576,
+			Capabilities: []string{"text", "vision", "function_calling"},
 		},
 		{
 			ID:           "gpt-4o",
 			Provider:     "openai",
 			ContextSize:  128000,
 			Capabilities: []string{"text", "vision", "audio", "function_calling"},
-		},
-		{
-			ID:           "gpt-4-turbo",
-			Provider:     "openai",
-			ContextSize:  128000,
-			Capabilities: []string{"text", "vision", "function_calling"},
-		},
-		{
-			ID:           "gpt-4",
-			Provider:     "openai",
-			ContextSize:  8192,
-			Capabilities: []string{"text", "function_calling"},
 		},
 	}, nil
 }

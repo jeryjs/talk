@@ -202,29 +202,23 @@ func (p *GeminiProvider) ListModels(ctx context.Context) ([]Model, error) {
 		{
 			ID:           "gemini-2.5-pro",
 			Provider:     "gemini",
-			ContextSize:  2000000,
+			ContextSize:  1048576,
+			Capabilities: []string{"text", "vision", "thinking", "function_calling"},
+		},
+		{
+			ID:           "gemini-2.5-flash",
+			Provider:     "gemini",
+			ContextSize:  1048576,
+			Capabilities: []string{"text", "vision", "function_calling"},
+		},
+		{
+			ID:           "gemini-2.5-flash-lite",
+			Provider:     "gemini",
+			ContextSize:  1048576,
 			Capabilities: []string{"text", "vision", "thinking", "function_calling"},
 		},
 		{
 			ID:           "gemini-2.0-flash-exp",
-			Provider:     "gemini",
-			ContextSize:  1000000,
-			Capabilities: []string{"text", "vision", "function_calling"},
-		},
-		{
-			ID:           "gemini-2.0-flash-thinking-exp",
-			Provider:     "gemini",
-			ContextSize:  1000000,
-			Capabilities: []string{"text", "vision", "thinking", "function_calling"},
-		},
-		{
-			ID:           "gemini-1.5-pro",
-			Provider:     "gemini",
-			ContextSize:  2000000,
-			Capabilities: []string{"text", "vision", "function_calling"},
-		},
-		{
-			ID:           "gemini-1.5-flash",
 			Provider:     "gemini",
 			ContextSize:  1000000,
 			Capabilities: []string{"text", "vision", "function_calling"},

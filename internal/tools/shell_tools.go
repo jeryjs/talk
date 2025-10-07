@@ -122,7 +122,55 @@ func (t *GetTerminalContextTool) Execute(ctx context.Context, args json.RawMessa
 	return info.String(), nil
 }
 
+// AhkExecuteTool executes AutoHotkey scripts
+type AhkExecuteTool struct{}
+
+func (t *AhkExecuteTool) Name() string {
+	return "execute_ahk"
+}
+
+func (t *AhkExecuteTool) Description() string {
+	return "Execute an AutoHotkey script. Only works on Windows."
+}
+
+func (t *AhkExecuteTool) Parameters() interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"script": map[string]interface{}{
+				"type":        "string",
+				"description": "The AutoHotkey script to execute",
+			},
+		},
+		"required": []string{"script"},
+	}
+}
+
+type AhkExecuteArgs struct {
+	Script string `json:"script"`
+}
+
+func (t *AhkExecuteTool) Execute(ctx context.Context, args json.RawMessage) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("AutoHotkey is only supported on Windows")
+	}
+
+	var params AhkExecuteArgs
+	if err := json.Unmarshal(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, "AutoHotkey.exe", "/ErrorStdOut", params.Script)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("AHK script failed: %w\nOutput: %s", err, string(output))
+	}
+
+	return string(output), nil
+}
+
 func init() {
 	Register(&ShellExecuteTool{})
 	Register(&GetTerminalContextTool{})
+	Register(&AhkExecuteTool{})
 }
