@@ -1,0 +1,56 @@
+# Nero Configuration Example
+
+# API Keys (you can also use environment variables)
+# openai_api_key: "sk-..."
+# anthropic_api_key: "sk-ant-..."
+# google_api_key: "..."
+# openrouter_api_key: "sk-or-..."
+
+# Default Settings
+default_model: "gpt-4o"  # Available: gpt-4o, gpt-4.5, gpt-4-turbo (OpenAI), llama3.1:405b (Ollama)
+default_mood: "helpful"
+max_tokens: 4096
+temperature: 0.7
+
+# Features
+enable_voice: true
+enable_computer_use: true
+enable_mcp: true
+enable_web_search: true
+
+# Plugins
+auto_reload_plugins: true
+
+# MCP Servers (Model Context Protocol)
+# Uncomment and configure as needed
+# mcp_servers:
+#   - name: "filesystem"
+#     command: "npx"
+#     args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/files"]
+#     enabled: true
+  
+#   - name: "github"
+#     command: "npx"
+#     args: ["-y", "@modelcontextprotocol/server-github"]
+#     env:
+#       GITHUB_TOKEN: "ghp_..."
+#     enabled: true
+  
+#   - name: "web-search"
+#     command: "npx"
+#     args: ["-y", "@modelcontextprotocol/server-brave-search"]
+#     env:
+#       BRAVE_API_KEY: "..."
+#     enabled: true
+
+# Provider-specific settings
+providers:
+  ollama:
+    base_url: "http://localhost:11434"
+  
+  openrouter:
+    # OpenRouter provides access to 500+ models
+    # Example models: openai/gpt-4, anthropic/claude-3-opus, meta-llama/llama-3.1-405b
+    fallback_models: 
+      - "openai/gpt-4-turbo"
+      - "anthropic/claude-3-opus"
